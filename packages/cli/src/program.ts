@@ -1,6 +1,7 @@
 import { Command, Help } from 'commander'
 import { api } from './commands/api.js'
 import { completionScript } from './commands/completion.js'
+import { listen } from './commands/listen.js'
 import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
 import { mcp } from './commands/mcp.js'
@@ -10,7 +11,18 @@ import {
   profileNames,
   profileUse,
 } from './commands/profile.js'
+import { trigger } from './commands/trigger.js'
 import { version } from './commands/version.js'
+import {
+  DELIVERY_STATUSES,
+  deliveriesList,
+  deliveriesRetry,
+  endpointsCreate,
+  endpointsDelete,
+  endpointsList,
+  endpointsTest,
+  webhooksEvents,
+} from './commands/webhooks.js'
 import { whoami } from './commands/whoami.js'
 import { Context, type Deps, type GlobalOptions } from './context.js'
 import { versionLine } from './version.js'
@@ -153,6 +165,131 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
         }),
       ),
     )
+
+  program
+    .command('listen')
+    .description('Recebe os eventos de webhook do workspace em tempo real')
+    .option(
+      '-e, --events <tipos>',
+      'só estes tipos, separados por vírgula (padrão: todos)',
+    )
+    .option(
+      '-f, --forward <url>',
+      'repassa cada evento para esta URL local (ex.: localhost:3001/webhooks)',
+    )
+    .option('-p, --print', 'mostra o corpo JSON de cada evento')
+    .addHelpText(
+      'after',
+      '\nExemplos:\n  steel listen\n  steel listen --events crm.lead.created,crm.deal.won\n  steel listen --forward localhost:3001/api/webhooks/steel\n\nEm outro terminal, `steel trigger crm.lead.created` gera um evento de teste.\n',
+    )
+    .action(
+      run((ctx, _, options) =>
+        listen(ctx, {
+          events: options.events,
+          forward: options.forward,
+          print: options.print,
+        }),
+      ),
+    )
+
+  program
+    .command('trigger')
+    .description(
+      'Dispara um evento de teste com os dados de exemplo do catálogo',
+    )
+    .argument('<tipo>', 'tipo do evento (veja `steel webhooks events`)')
+    .option('--endpoint <id>', 'também entrega a este endpoint')
+    .action(
+      run((ctx, [type], options) =>
+        trigger(ctx, type as string, { endpoint: options.endpoint }),
+      ),
+    )
+
+  const webhooks = program
+    .command('webhooks')
+    .description('Catálogo de eventos, endpoints e log de entregas')
+
+  webhooks
+    .command('events')
+    .description('Lista os tipos de evento que o Steel envia')
+    .action(run((ctx) => webhooksEvents(ctx)))
+
+  const endpoints = webhooks
+    .command('endpoints')
+    .description('Endpoints que recebem os webhooks (OWNER/ADMIN)')
+
+  endpoints
+    .command('list')
+    .description('Lista os endpoints do workspace')
+    .action(run((ctx) => endpointsList(ctx)))
+
+  endpoints
+    .command('create')
+    .description('Cadastra um endpoint e mostra o segredo de assinatura')
+    .requiredOption('--url <url>', 'URL HTTPS que recebe os eventos')
+    .requiredOption(
+      '--events <tipos>',
+      'tipos separados por vírgula, ou "*" para todos',
+    )
+    .option('--description <texto>', 'descrição do endpoint')
+    .option('--inactive', 'cadastra desativado')
+    .action(
+      run((ctx, _, options) =>
+        endpointsCreate(ctx, {
+          url: options.url,
+          events: options.events,
+          description: options.description,
+          active: !options.inactive,
+        }),
+      ),
+    )
+
+  endpoints
+    .command('delete')
+    .description('Remove um endpoint')
+    .argument('<id>', 'ID do endpoint')
+    .option('-y, --yes', 'não pede confirmação')
+    .action(
+      run((ctx, [id], options) =>
+        endpointsDelete(ctx, id as string, { yes: options.yes }),
+      ),
+    )
+
+  endpoints
+    .command('test')
+    .description('Envia um steel.ping ao endpoint e mostra a resposta')
+    .argument('<id>', 'ID do endpoint')
+    .action(run((ctx, [id]) => endpointsTest(ctx, id as string)))
+
+  const deliveries = webhooks
+    .command('deliveries')
+    .description('Log de entregas dos últimos 30 dias')
+
+  deliveries
+    .command('list')
+    .description('Lista as entregas, mais novas primeiro')
+    .option('--endpoint <id>', 'só deste endpoint')
+    .option('--status <estado>', DELIVERY_STATUSES.join(', '))
+    .option('--limit <n>', 'entregas por página (1 a 100, padrão 25)')
+    .option('--cursor <cursor>', 'continua de uma página anterior')
+    .option('--all', 'busca todas as páginas')
+    .action(
+      run((ctx, _, options) =>
+        deliveriesList(ctx, {
+          endpoint: options.endpoint,
+          status: options.status,
+          limit: options.limit,
+          cursor: options.cursor,
+          all: options.all,
+        }),
+      ),
+    )
+
+  deliveries
+    .command('retry')
+    .description('Reenvia uma entrega (mesmo corpo e mesmo id)')
+    .argument('<id>', 'ID da entrega')
+    .action(run((ctx, [id]) => deliveriesRetry(ctx, id as string)))
 
   program
     .command('version')

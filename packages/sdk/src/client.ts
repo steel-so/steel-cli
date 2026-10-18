@@ -6,11 +6,8 @@ import type {
   DeviceToken,
   Me,
 } from './models.js'
-import {
-  errorFromResponse,
-  type SteelResult,
-  toNetworkError,
-} from './result.js'
+import { type SteelResult, settle, toNetworkError } from './result.js'
+import { createWebhooksApi, type WebhooksApi } from './webhooks.js'
 
 export interface SteelClientOptions {
   /** Steel origin, e.g. `https://homologacao.stratustelecom.com.br`. */
@@ -56,6 +53,8 @@ export interface SteelClient {
    * `RawResponse` with `ok: false` inside.
    */
   request(request: RawRequest): Promise<SteelResult<RawResponse>>
+  /** Outbound webhooks: catalog, endpoints, deliveries, listen, trigger. */
+  webhooks: WebhooksApi
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -76,24 +75,6 @@ async function readBody(response: Response): Promise<unknown> {
     }
   }
   return text
-}
-
-type Fetched<T> = {
-  data?: { data: T }
-  error?: unknown
-  response: Response
-}
-
-async function settle<T>(call: Promise<Fetched<T>>): Promise<SteelResult<T>> {
-  try {
-    const { data, error, response } = await call
-    if (response.ok && data) {
-      return { ok: true, status: response.status, data: data.data }
-    }
-    return { ok: false, error: errorFromResponse(response, error) }
-  } catch (cause) {
-    return { ok: false, error: toNetworkError(cause) }
-  }
 }
 
 export function createSteelClient(options: SteelClientOptions): SteelClient {
@@ -132,6 +113,13 @@ export function createSteelClient(options: SteelClientOptions): SteelClient {
           }),
         ),
     },
+    webhooks: createWebhooksApi({
+      api,
+      baseUrl,
+      headers,
+      fetch: fetchImpl,
+      timeoutMs,
+    }),
     async request({ method, path, query, body }) {
       const url = new URL(`${baseUrl}${path}`)
       for (const [key, value] of Object.entries(query ?? {})) {

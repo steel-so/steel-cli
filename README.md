@@ -1,11 +1,10 @@
 # Steel CLI
 
 `steel` é o Steel no terminal: entre pelo navegador, chame a API pública v1
-em scripts e no CI, e (em breve) receba webhooks na sua máquina. Este
+em scripts e no CI, e receba os webhooks do Steel na sua máquina. Este
 repositório também traz o SDK TypeScript `@steel-so/sdk`.
 
-> Comandos de ServiceDesk, CRM e Comunicação e o `steel listen` chegam nas
-> próximas versões.
+> Comandos de ServiceDesk, CRM e Comunicação chegam nas próximas versões.
 
 ## Instalação
 
@@ -101,6 +100,56 @@ O caminho é relativo a `/api/v1` (`/me` e `/api/v1/me` são a mesma rota). A
 resposta sai em JSON no stdout, inclusive em erro; o código de saída indica o
 resultado.
 
+## Webhooks na sua máquina
+
+`steel listen` recebe em tempo real os eventos de webhook do workspace (é
+preciso ser OWNER/ADMIN) e, com `--forward`, repassa cada um para o seu app
+local com o **mesmo corpo e os mesmos cabeçalhos** que o Steel envia
+(`Steel-Webhook-Id`, `Steel-Webhook-Timestamp`, `Steel-Signature`). Assim a
+verificação de assinatura do seu app roda igual à de produção.
+
+```bash
+steel listen                                          # todos os eventos
+steel listen --events crm.lead.created,crm.deal.won   # só estes tipos
+steel listen --forward localhost:3001/api/webhooks/steel
+steel listen --print                                  # mostra o corpo de cada evento
+```
+
+Ao conectar, o `steel listen` mostra o **segredo de assinatura** da escuta
+(`whsec_...`): configure-o no app local para validar as requisições
+repassadas. Cada linha mostra a hora, o tipo, o id do evento e, com
+`--forward`, o código HTTP e o tempo de resposta do seu app. Se a conexão
+cair, o CLI reconecta sozinho (1, 2, 4… até 30 s). Ctrl+C encerra.
+
+Fora de um terminal (ou com `--json`), cada evento sai como uma linha JSON
+(NDJSON) no stdout, bom para `jq`:
+
+```bash
+steel listen --json | jq -r 'select(.type == "webhook") | .eventType'
+```
+
+Para gerar um evento de teste com os dados de exemplo do catálogo, em outro
+terminal:
+
+```bash
+steel trigger crm.lead.created                    # chega a quem está com steel listen
+steel trigger crm.deal.won --endpoint <id>        # e também a este endpoint
+```
+
+### Endpoints e entregas
+
+```bash
+steel webhooks events                             # catálogo de eventos
+steel webhooks endpoints list
+steel webhooks endpoints create --url https://erp.exemplo.com/steel --events "*"
+steel webhooks endpoints test <id>                # envia um steel.ping e mostra a resposta
+steel webhooks endpoints delete <id>              # pede confirmação; --yes em scripts
+steel webhooks deliveries list --endpoint <id> --status FAILED
+steel webhooks deliveries retry <id>              # reenvia (mesmo corpo e mesmo id)
+```
+
+O segredo de um endpoint novo só aparece na criação: guarde-o na hora.
+
 ## Scripts e CI
 
 | Variável | Para quê |
@@ -181,6 +230,31 @@ const { data } = await steel.api.GET('/api/v1/me')
 
 O SDK não lança exceção em erro HTTP ou de rede: toda chamada resolve em
 `{ ok: true, data }` ou `{ ok: false, error: { status, code, message } }`.
+
+### Verificar a assinatura de um webhook
+
+```ts
+import { verifySignature } from '@steel-so/sdk'
+
+// rawBody: o corpo exato recebido, antes de qualquer JSON.parse
+const valid = verifySignature(
+  process.env.STEEL_WEBHOOK_SECRET,
+  request.headers.get('steel-signature'),
+  request.headers.get('steel-webhook-timestamp'),
+  rawBody,
+)
+if (!valid) return new Response('assinatura inválida', { status: 401 })
+```
+
+A assinatura é `v1=<hex do HMAC-SHA256 de "<timestamp>.<corpo>">` com o
+segredo do endpoint. `verifySignature` compara em tempo constante, aceita
+várias assinaturas separadas por vírgula (troca de segredo) e recusa
+timestamps a mais de 5 minutos do relógio local (ajuste com
+`{ toleranceSeconds }`). Nunca lança exceção.
+
+O SDK também expõe `steel.webhooks` (catálogo, endpoints, entregas,
+`trigger`) e `steel.webhooks.listen()`, o stream SSE usado pelo
+`steel listen`.
 
 ## Licença
 

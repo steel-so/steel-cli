@@ -5,6 +5,7 @@ import { keychainBackend } from './config/credentials.js'
 import { configDir } from './config/paths.js'
 import { Context, type Deps } from './context.js'
 import { CliError, EXIT, usageError } from './errors.js'
+import { confirmPrompt } from './lib/confirm.js'
 import { openBrowser } from './lib/open-browser.js'
 import { checkForUpdate } from './lib/update-check.js'
 import { buildProgram } from './program.js'
@@ -144,6 +145,9 @@ export function processDeps(): Deps {
     hostname,
     interrupt: interrupt.signal,
     live: Boolean(process.stdout.isTTY),
+    confirm: process.stdin.isTTY
+      ? (question) => confirmPrompt(question)
+      : undefined,
     stdio: { stdin: process.stdin, stdout: process.stdout },
   }
 }
