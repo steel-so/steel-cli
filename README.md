@@ -18,7 +18,7 @@ brew install steel-so/tap/steel
 ```bash
 curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | sh
 # versão e pasta específicas:
-curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.1.0 STEEL_INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.1.1 STEEL_INSTALL_DIR=/usr/local/bin sh
 ```
 
 **npm** (Node.js 22.12 ou mais novo):
@@ -42,12 +42,24 @@ sha256sum --ignore-missing -c SHA256SUMS          # macOS: shasum -a 256 -c
 gh attestation verify steel-linux-x64.tar.gz --repo steel-so/steel-cli
 ```
 
-O pacote npm sai com `--provenance`: `npm audit signatures` confere.
+Os pacotes npm (`@steel-so/cli` e `@steel-so/sdk`) são publicados pelo
+GitHub Actions com *trusted publishing* e atestação de proveniência, a partir
+da 0.1.1. A 0.1.0 foi publicada à mão e **não** tem essa atestação. Para
+conferir numa instalação:
+
+```bash
+# numa pasta de teste: o npm audit signatures confere as dependências instaladas
+npm install @steel-so/cli@0.1.1 @steel-so/sdk@0.1.1
+npm audit signatures    # conta os pacotes com "verified attestations"
+```
+
+A página do pacote no npmjs.com também mostra a proveniência (o commit e o
+workflow que publicaram a versão).
 
 ### Versão instalada
 
 ```bash
-steel --version        # steel 0.1.0 (cf5eae2, 2026-10-18)
+steel --version        # steel 0.1.1 (<commit>, <data do build>)
 steel version          # versão, commit, data do build, plataforma e instalação
 steel version --json
 ```
@@ -69,8 +81,8 @@ O token fica no **chaveiro do sistema** (Keychain no macOS, Gerenciador de
 Credenciais no Windows, Secret Service no Linux). Sem chaveiro disponível, vai
 para `~/.config/steel/credentials` com permissão 600. O `steel logout`
 revoga o token salvo no Steel e apaga a cópia local; se o Steel não responder,
-ele apaga a cópia mesmo assim e avisa — aí revogue em **Ajustes › Segurança ›
-Tokens de API**. Um token em `STEEL_TOKEN` não é revogado.
+ele apaga a cópia mesmo assim e avisa — aí revogue em **Configurações ›
+Segurança › Tokens de API**. Um token em `STEEL_TOKEN` não é revogado.
 
 ## Painel interativo
 
@@ -240,9 +252,9 @@ estável no stdout, sem cores. Erros saem no stderr como
 | Código de saída | Significado |
 | --- | --- |
 | 0 | sucesso |
-| 1 | erro (rede, servidor, resposta HTTP de erro) |
+| 1 | erro (rede, tempo esgotado, limite de requisições, servidor, qualquer outra resposta HTTP de erro) |
 | 2 | uso incorreto (comando, opção ou argumento) |
-| 3 | autenticação (sem login, token inválido ou sem permissão) |
+| 3 | autenticação ou permissão: sem login, sem token do MCP, ou **qualquer** resposta 401/403 (token inválido, vencido ou revogado, sem o escopo `api:write`, módulo fora do token, sem o papel necessário) — inclusive no `steel api` |
 | 130 | cancelado (Ctrl+C) |
 
 ## Autocomplete
@@ -275,7 +287,7 @@ clientes de IA que só falam MCP por stdio ou não fazem o OAuth do Steel. O
 - O token é um **token de acesso OAuth do MCP do Steel** (o mesmo que um
   cliente compatível recebe depois do consentimento), não o `stl_pat_` do
   `steel login`. Passe por `STEEL_MCP_TOKEN` (de preferência) ou `--token`.
-- Revogue em **Ajustes › Apps conectados**.
+- Revogue em **Configurações › Segurança › Apps conectados**.
 - O stdout é do protocolo: avisos e erros saem no stderr, em JSON.
 - Se o Steel recusar uma requisição (token inválido, sem permissão, fora do
   ar), o cliente recebe um erro JSON-RPC na hora, sem ficar esperando.

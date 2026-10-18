@@ -5,11 +5,17 @@ name: Release
 # Pull requests that touch the release tooling build the binaries only, so
 # the five platforms are proven before the first tag.
 #
+# Before anything is published, `contract` checks the SDK snapshot against
+# the Steel homologação (ADR 0034); it also runs alone from the Actions tab
+# (workflow_dispatch), which never publishes.
+#
 # Secrets (all optional; each step skips with a notice when its secret is
 # missing — see CONTRIBUTING.md › Releasing):
 #   (npm needs no secret: it publishes with trusted publishing over OIDC)
-#   TAP_DEPLOY_KEY  private ed25519 deploy key with write access to
-#                   steel-so/homebrew-tap
+#   TAP_DEPLOY_KEY        private ed25519 deploy key with write access to
+#                         steel-so/homebrew-tap
+#   STEEL_CONTRACT_TOKEN  read-only personal token (api:read) on the Steel
+#                         homologação, for the CLI smoke of `contract`
 
 on:
   push:
@@ -20,7 +26,13 @@ on:
       - scripts/**
       - install.sh
       - packages/cli/package.json
+      - packages/sdk/openapi/**
       - pnpm-lock.yaml
+  workflow_dispatch:
+    inputs:
+      steel_url:
+        description: Steel to run the contract test against
+        default: https://homologacao.stratustelecom.com.br
 
 permissions:
   contents: read
@@ -31,11 +43,12 @@ concurrency:
 
 env:
   BUN_VERSION: 1.4.2
+  STEEL_CONTRACT_URL: ${{ inputs.steel_url || 'https://homologacao.stratustelecom.com.br' }}
 
 jobs:
   verify:
     name: Verify the tag
-    if: github.ref_type == 'tag'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -71,8 +84,68 @@ jobs:
       - run: pnpm test:coverage
       - run: pnpm build
 
+  contract:
+    name: Contract with the Steel homologação
+    # Pull requests only reach it through the paths above (release tooling,
+    # SDK snapshot); a dispatch runs it alone.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      STEEL_CONTRACT_TOKEN: ${{ secrets.STEEL_CONTRACT_TOKEN }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # No removed path, operation or field, no type change and no newly
+      # required input since the snapshot the SDK was generated from.
+      - name: OpenAPI compatibility
+        run: pnpm --silent contract:check "${STEEL_CONTRACT_URL%/}/dev/api/v1/openapi.json"
+
+      - name: Skip the smoke without STEEL_CONTRACT_TOKEN
+        if: env.STEEL_CONTRACT_TOKEN == ''
+        run: echo "::notice::STEEL_CONTRACT_TOKEN is not set; skipping the read-only CLI smoke against $STEEL_CONTRACT_URL (see CONTRIBUTING.md › Releasing)."
+
+      - name: Build the CLI
+        if: env.STEEL_CONTRACT_TOKEN != ''
+        run: pnpm build
+
+      # Read-only on purpose: the token must not carry api:write.
+      - name: Read-only smoke
+        if: env.STEEL_CONTRACT_TOKEN != ''
+        env:
+          STEEL_URL: ${{ env.STEEL_CONTRACT_URL }}
+          STEEL_TOKEN: ${{ secrets.STEEL_CONTRACT_TOKEN }}
+          STEEL_CONFIG_DIR: ${{ runner.temp }}/steel-config
+          STEEL_NO_KEYCHAIN: '1'
+          STEEL_NO_UPDATE_NOTIFIER: '1'
+        run: |
+          steel() { node packages/cli/dist/steel.js "$@"; }
+          out="$RUNNER_TEMP/contract"
+          mkdir -p "$out"
+          steel whoami --json > "$out/whoami.json"
+          jq -e 'has("user") and has("token") and (.scopes | type == "array")' "$out/whoami.json" > /dev/null
+          if jq -e '.scopes | index("api:write")' "$out/whoami.json" > /dev/null; then
+            echo "::error::STEEL_CONTRACT_TOKEN has api:write; replace it with an api:read token."
+            exit 1
+          fi
+          steel sd catalog --json > "$out/sd-catalog.json"
+          steel crm pipelines --json > "$out/crm-pipelines.json"
+          for file in "$out"/*.json; do
+            jq -e . "$file" > /dev/null
+            echo "$(basename "$file"): $(wc -c < "$file") bytes of JSON"
+          done
+
   binaries:
     name: Binary ${{ matrix.target }}
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     strategy:
@@ -106,7 +179,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Stamp the version
-        if: github.ref_type == 'tag'
+        if: github.event_name == 'push' && github.ref_type == 'tag'
         run: pnpm --silent release:tool stamp "$GITHUB_REF_NAME"
 
       - name: Compile
@@ -138,8 +211,8 @@ jobs:
 
   github-release:
     name: GitHub release
-    if: github.ref_type == 'tag'
-    needs: [verify, binaries]
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [verify, contract, binaries]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -199,8 +272,8 @@ jobs:
 
   npm:
     name: npm publish
-    if: github.ref_type == 'tag'
-    needs: [verify, github-release]
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [verify, contract, github-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -251,7 +324,7 @@ jobs:
 
   homebrew:
     name: Homebrew formula
-    if: github.ref_type == 'tag' && needs.verify.outputs.prerelease == 'false'
+    if: github.event_name == 'push' && github.ref_type == 'tag' && needs.verify.outputs.prerelease == 'false'
     needs: [verify, github-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
