@@ -11,11 +11,11 @@ import {
   crmResource,
   type ServicedeskResource,
   servicedeskResource,
-  settle,
   type WhatsAppResource,
   whatsappResource,
 } from './resources.js'
-import { type SteelResult, toNetworkError } from './result.js'
+import { type SteelResult, settle, toNetworkError } from './result.js'
+import { createWebhooksApi, type WebhooksApi } from './webhooks.js'
 
 export interface SteelClientOptions {
   /** Steel origin, e.g. `https://homologacao.stratustelecom.com.br`. */
@@ -64,6 +64,8 @@ export interface SteelClient {
    * `RawResponse` with `ok: false` inside.
    */
   request(request: RawRequest): Promise<SteelResult<RawResponse>>
+  /** Outbound webhooks: catalog, endpoints, deliveries, listen, trigger. */
+  webhooks: WebhooksApi
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -125,6 +127,13 @@ export function createSteelClient(options: SteelClientOptions): SteelClient {
           }),
         ),
     },
+    webhooks: createWebhooksApi({
+      api,
+      baseUrl,
+      headers,
+      fetch: fetchImpl,
+      timeoutMs,
+    }),
     async request({ method, path, query, body }) {
       const url = new URL(`${baseUrl}${path}`)
       for (const [key, value] of Object.entries(query ?? {})) {

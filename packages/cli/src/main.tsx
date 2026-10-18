@@ -5,6 +5,7 @@ import { keychainBackend } from './config/credentials.js'
 import { configDir } from './config/paths.js'
 import { Context, type Deps } from './context.js'
 import { CliError, EXIT, usageError } from './errors.js'
+import { confirmPrompt } from './lib/confirm.js'
 import { openBrowser } from './lib/open-browser.js'
 import { readlinePrompter } from './lib/prompt.js'
 import { checkForUpdate } from './lib/update-check.js'
@@ -149,5 +150,8 @@ export function processDeps(): Deps {
       process.stdin.isTTY && process.stdout.isTTY
         ? readlinePrompter(process.stdin, process.stderr, interrupt.signal)
         : undefined,
+    confirm: process.stdin.isTTY
+      ? (question) => confirmPrompt(question)
+      : undefined,
   }
 }

@@ -16,11 +16,7 @@ import type {
   WhatsAppTemplate,
   WhatsAppTemplateSend,
 } from './models.js'
-import {
-  errorFromResponse,
-  type SteelResult,
-  toNetworkError,
-} from './result.js'
+import { type SteelResult, settle } from './result.js'
 
 type Query<Op extends keyof operations> = NonNullable<
   operations[Op]['parameters']['query']
@@ -48,27 +44,6 @@ export interface SdTicketMove {
 export interface CrmOpportunityMove {
   stageId: string
   pipelineId?: string
-}
-
-type Fetched<T> = {
-  data?: { data: T }
-  error?: unknown
-  response: Response
-}
-
-/** Unwraps the `{ success, data }` envelope into a `SteelResult`. */
-export async function settle<T>(
-  call: Promise<Fetched<T>>,
-): Promise<SteelResult<T>> {
-  try {
-    const { data, error, response } = await call
-    if (response.ok && data) {
-      return { ok: true, status: response.status, data: data.data }
-    }
-    return { ok: false, error: errorFromResponse(response, error) }
-  } catch (cause) {
-    return { ok: false, error: toNetworkError(cause) }
-  }
 }
 
 /** ServiceDesk routes of the API v1 (`docs/cli/README.md`). */

@@ -49,16 +49,6 @@ describe('readlinePrompter', () => {
     expect(s.output()).toContain('Digite um número da lista.')
   })
 
-  it('confirms with sim/não and the default', async () => {
-    const s = scripted(['talvez', 'sim', 'n', ''])
-
-    expect(await s.prompt.confirm('Continuar?')).toBe(true)
-    expect(await s.prompt.confirm('Apagar?', false)).toBe(false)
-    expect(await s.prompt.confirm('De novo?', false)).toBe(false)
-    expect(s.output()).toContain('(S/n)')
-    expect(s.output()).toContain('(s/N)')
-  })
-
   it('turns Ctrl+C into a cancellation', async () => {
     const controller = new AbortController()
     const s = scripted([], controller.signal)
@@ -68,7 +58,7 @@ describe('readlinePrompter', () => {
       code: 'CANCELLED',
       exitCode: 130,
     })
-    await expect(s.prompt.confirm('Outra?')).rejects.toMatchObject({
+    await expect(s.prompt.text('Outra?')).rejects.toMatchObject({
       code: 'CANCELLED',
     })
   })
@@ -88,7 +78,6 @@ describe('domain helpers', () => {
     h.deps.prompt = {
       text: async () => 'asked',
       select: async () => 'x' as never,
-      confirm: async () => true,
     }
     const json = new Context(h.deps, { json: true })
     expect(json.interactive).toBe(false)

@@ -13,7 +13,10 @@ export async function domainHarness(
   const h = harness({ ...rest, tty: rest.tty ?? answers !== undefined })
   await h.keychain?.set('homologacao', 'stl_pat_saved')
   const prompt = answers ? scriptedPrompter(answers) : undefined
-  if (prompt) h.deps.prompt = prompt
+  if (prompt) {
+    h.deps.prompt = prompt
+    h.deps.confirm = prompt.confirm
+  }
   return { ...h, prompt }
 }
 
@@ -26,7 +29,11 @@ export function scriptedPrompter(answers: Array<string | boolean>) {
     if (answers.length === 0) throw new Error(`unexpected prompt: ${question}`)
     return answers.shift() as string | boolean
   }
-  const prompter: Prompter & { questions: string[]; choices: Choice[][] } = {
+  const prompter: Prompter & {
+    questions: string[]
+    choices: Choice[][]
+    confirm: (message: string) => Promise<boolean>
+  } = {
     questions,
     choices,
     text: vi.fn(async (message: string) => String(next(message))),

@@ -226,6 +226,153 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/webhooks/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Delivery log, newest first (30-day retention) */
+        get: operations["listWebhookDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/deliveries/{id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue one more attempt of a delivery (api:write) */
+        post: operations["retryWebhookDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Webhook endpoints of the workspace (OWNER/ADMIN) */
+        get: operations["listWebhookEndpoints"];
+        put?: never;
+        /** Register a webhook endpoint (api:write) */
+        post: operations["createWebhookEndpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/endpoints/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a webhook endpoint (api:write) */
+        delete: operations["deleteWebhookEndpoint"];
+        options?: never;
+        head?: never;
+        /** Change a webhook endpoint (api:write) */
+        patch: operations["updateWebhookEndpoint"];
+        trace?: never;
+    };
+    "/api/v1/webhooks/endpoints/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a steel.ping to one endpoint now (api:write) */
+        post: operations["testWebhookEndpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog of the webhook events Steel sends */
+        get: operations["listWebhookEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/listen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Server-Sent Events with the workspace's webhook events (steel listen)
+         * @description First `event: ready` with WebhookListenReady, then `event: webhook` (id = event id) with WebhookListenFrame for each event, and a `: ping` comment every 25 s.
+         */
+        get: operations["listenWebhooks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/webhooks/trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a test event of a catalog type (steel trigger, api:write) */
+        post: operations["triggerWebhookEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/broadcasts/{broadcastId}": {
         parameters: {
             query?: never;
@@ -283,6 +430,12 @@ export type components = {
     schemas: {
         /** @enum {string} */
         ApiScope: "api:read" | "api:write";
+        CreateWebhookEndpointRequest: {
+            active?: boolean;
+            description?: string;
+            events: string[];
+            url: string;
+        };
         CrmLead: {
             channel: string | null;
             city: string | null;
@@ -539,6 +692,124 @@ export type components = {
             statusCode: number;
             /** @constant */
             success: true;
+        };
+        TriggerWebhookEventRequest: {
+            endpointId?: string;
+            type: string;
+        };
+        UpdateWebhookEndpointRequest: {
+            active?: boolean;
+            description?: string | null;
+            events?: string[];
+            url?: string;
+        };
+        WebhookDelivery: {
+            attempts: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            deliveredAt: string | null;
+            durationMs: number | null;
+            endpointId: string;
+            /** @example http_500 */
+            error: string | null;
+            eventId: string;
+            eventType: string;
+            id: string;
+            /** Format: date-time */
+            lastAttemptAt: string | null;
+            /** @description Exact JSON body sent */
+            requestBody: string;
+            /** @description First 1 KB of the answer */
+            responseBody: string | null;
+            responseStatus: number | null;
+            status: components["schemas"]["WebhookDeliveryStatus"];
+        };
+        WebhookDeliveryPage: {
+            items: components["schemas"]["WebhookDelivery"][];
+            nextCursor: string | null;
+        };
+        /** @enum {string} */
+        WebhookDeliveryStatus: "PENDING" | "SUCCEEDED" | "RETRYING" | "FAILED" | "SKIPPED";
+        WebhookEndpoint: {
+            active: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            createdById: string;
+            description: string | null;
+            /** Format: date-time */
+            disabledAt: string | null;
+            /** @description manual or auto */
+            disabledReason: string | null;
+            /** @description Catalog types, or ["*"] for all */
+            events: string[];
+            /** Format: date-time */
+            failingSince: string | null;
+            id: string;
+            /** Format: date-time */
+            lastFailureAt: string | null;
+            /** Format: date-time */
+            lastSuccessAt: string | null;
+            /** @example whsec_…a1b2 */
+            secretHint: string;
+            /** Format: date-time */
+            updatedAt: string;
+            url: string;
+            workspaceId: string;
+        };
+        WebhookEndpointPage: {
+            items: components["schemas"]["WebhookEndpoint"][];
+            nextCursor: string | null;
+        };
+        WebhookEndpointWithSecret: {
+            endpoint: components["schemas"]["WebhookEndpoint"];
+            secret: string;
+        };
+        /** @description Body of every webhook delivery */
+        WebhookEvent: {
+            /** Format: date-time */
+            createdAt: string;
+            data: unknown;
+            id: string;
+            type: string;
+            workspaceId: string;
+        };
+        /** @enum {string} */
+        WebhookEventModule: "SERVICE_DESK" | "CRM" | "COMMUNICATION" | "AGENTS" | "PLATFORM";
+        WebhookEventType: {
+            /** @description pt-BR */
+            description: string;
+            module: components["schemas"]["WebhookEventModule"];
+            /** @description false only for steel.ping */
+            subscribable: boolean;
+            /** @example crm.lead.created */
+            type: string;
+        };
+        /** @description Data of each SSE message (event: webhook): the exact body and the three Steel-Webhook-* header values */
+        WebhookListenFrame: {
+            /** @description Exact JSON body of the event */
+            body: string;
+            id: string;
+            /** @description Steel-Signature header value (v1=<hex>) */
+            signature: string;
+            /** @description Unix seconds (Steel-Webhook-Timestamp) */
+            timestamp: number;
+        };
+        /** @description Data of the first SSE message (event: ready) of /api/v1/webhooks/listen */
+        WebhookListenReady: {
+            /** @description Filter in effect; empty means all */
+            events: string[];
+            /** @description Signing secret of this member's listen feed */
+            secret: string;
+            workspaceId: string;
+        };
+        WebhookTriggerResult: {
+            /** @description Endpoint deliveries queued (0 when only listeners get it) */
+            deliveries: number;
+            event: {
+                id: string;
+                type: string;
+            };
         };
         WhatsAppBroadcast: {
             connectionId: string;
@@ -1103,6 +1374,287 @@ export interface operations {
             404: components["responses"]["Error"];
             422: components["responses"]["Error"];
             429: components["responses"]["Error"];
+        };
+    };
+    listWebhookDeliveries: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                endpointId?: string;
+                limit?: number;
+                status?: components["schemas"]["WebhookDeliveryStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of deliveries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookDeliveryPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    retryWebhookDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retry queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    listWebhookEndpoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Endpoints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookEndpointPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    createWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateWebhookEndpointRequest"];
+            };
+        };
+        responses: {
+            /** @description Endpoint and its signing secret (returned only here) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookEndpointWithSecret"];
+                    };
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    deleteWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: {
+                            id: string;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    updateWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWebhookEndpointRequest"];
+            };
+        };
+        responses: {
+            /** @description Endpoint */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookEndpoint"];
+                    };
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    testWebhookEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The test delivery */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookDelivery"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+        };
+    };
+    listWebhookEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event catalog (only the token's modules) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookEventType"][];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    listenWebhooks: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated event types; empty means all */
+                events?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    triggerWebhookEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerWebhookEventRequest"];
+            };
+        };
+        responses: {
+            /** @description Event created */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WebhookTriggerResult"];
+                    };
+                };
+            };
+            400: components["responses"]["Error"];
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
         };
     };
     getWhatsAppBroadcast: {

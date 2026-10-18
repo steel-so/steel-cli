@@ -80,15 +80,19 @@ export async function required<T>(
   throw usageError(`Falta ${flag}.`, hint ?? 'Veja as opções com `--help`.')
 }
 
-/** Asks before a write on a terminal; `--yes` and scripts skip it. */
+/**
+ * Asks before a write on a terminal (the shared `Deps.confirm`); `--yes`,
+ * `--json` and scripts skip it. These writes are not destructive, so unlike
+ * `webhooks endpoints delete` they do not require `--yes` in a script.
+ */
 export async function confirmWrite(
   ctx: Context,
   yes: boolean | undefined,
   message: string,
 ): Promise<void> {
-  if (yes || !ctx.interactive) return
-  const confirmed = await ctx.prompt.confirm(message)
-  if (!confirmed) throw cancelled()
+  const confirm = ctx.json ? undefined : ctx.deps.confirm
+  if (yes || !confirm) return
+  if (!(await confirm(message))) throw cancelled()
 }
 
 /** `texto`, `@arquivo` or `@-` (stdin). */

@@ -46,6 +46,8 @@ export interface Deps {
   live?: boolean
   /** Terminal questions; only set when stdin and stdout are TTYs. */
   prompt?: Prompter
+  /** Asks a yes/no question; undefined when stdin is not a terminal. */
+  confirm?: (question: string) => Promise<boolean>
 }
 
 export interface GlobalOptions {
@@ -99,8 +101,8 @@ export class Context {
   }
 
   /**
-   * Whether commands may ask questions (missing flags, confirmations): a
-   * terminal on both ends and no `--json`.
+   * Whether commands may ask for missing flags: a terminal on both ends and
+   * no `--json`.
    */
   get interactive(): boolean {
     return Boolean(this.deps.prompt) && !this.json

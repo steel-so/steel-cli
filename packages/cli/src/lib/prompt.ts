@@ -18,14 +18,14 @@ export interface TextOptions {
 }
 
 /**
- * Questions asked on a terminal when a required flag is missing or before a
- * write. Only built when stdin and stdout are TTYs; commands never prompt
- * otherwise (ADR 0034: scripts must not hang).
+ * Questions asked on a terminal when a required flag is missing; yes/no
+ * confirmations go through `Deps.confirm` (`lib/confirm.ts`). Only built
+ * when stdin and stdout are TTYs; commands never prompt otherwise
+ * (ADR 0034: scripts must not hang).
  */
 export interface Prompter {
   text(message: string, options?: TextOptions): Promise<string>
   select<T extends string>(message: string, choices: Choice<T>[]): Promise<T>
-  confirm(message: string, defaultValue?: boolean): Promise<boolean>
 }
 
 export function cancelled(): CliError {
@@ -34,9 +34,6 @@ export function cancelled(): CliError {
     exitCode: EXIT.CANCELLED,
   })
 }
-
-const YES = new Set(['s', 'sim', 'y', 'yes'])
-const NO = new Set(['n', 'nao', 'não', 'no'])
 
 /** Plain readline prompts on stderr, so stdout stays clean for pipes. */
 export function readlinePrompter(
@@ -85,17 +82,6 @@ export function readlinePrompter(
         output.write(
           `${muted(`  ${symbols.info} Digite um número da lista.`)}\n`,
         )
-      }
-    },
-    async confirm(message, defaultValue = true) {
-      const options = defaultValue ? 'S/n' : 's/N'
-      for (;;) {
-        const answer = (
-          await ask(`${mark} ${message} ${muted(`(${options})`)} `)
-        ).toLowerCase()
-        if (!answer) return defaultValue
-        if (YES.has(answer)) return true
-        if (NO.has(answer)) return false
       }
     },
   }
