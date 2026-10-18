@@ -4,14 +4,55 @@
 em scripts e no CI, e (em breve) receba webhooks na sua máquina. Este
 repositório também traz o SDK TypeScript `@steel-so/sdk`.
 
-> Versão inicial. Comandos de ServiceDesk, CRM e Comunicação, `steel listen`
-> e os binários por plataforma chegam nas próximas versões.
+> Comandos de ServiceDesk, CRM e Comunicação e o `steel listen` chegam nas
+> próximas versões.
 
 ## Instalação
 
+**Homebrew** (macOS e Linux):
+
 ```bash
-npm install -g @steel-so/cli   # Node.js 22.12 ou mais novo
-steel --version
+brew install steel-so/tap/steel
+```
+
+**Script** (macOS e Linux; confere o SHA-256 antes de instalar em
+`~/.local/bin`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | sh
+# versão e pasta específicas:
+curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.2.0 STEEL_INSTALL_DIR=/usr/local/bin sh
+```
+
+**npm** (Node.js 22.12 ou mais novo):
+
+```bash
+npm install -g @steel-so/cli
+```
+
+**Binário avulso:** cada [release](https://github.com/steel-so/steel-cli/releases)
+traz `steel-<sistema>-<cpu>` para `linux-x64`, `linux-arm64`, `darwin-x64`,
+`darwin-arm64` (`.tar.gz`) e `windows-x64` (`.zip`), sem precisar de Node.js.
+No Windows, descompacte o `.zip` e coloque o `steel.exe` numa pasta do `PATH`.
+
+### Conferir o download
+
+Toda release publica `SHA256SUMS` e uma atestação de proveniência assinada
+pelo GitHub Actions (Sigstore) para cada arquivo:
+
+```bash
+sha256sum --ignore-missing -c SHA256SUMS          # macOS: shasum -a 256 -c
+gh attestation verify steel-linux-x64.tar.gz --repo steel-so/steel-cli
+```
+
+O pacote npm sai com `--provenance`: `npm audit signatures` confere.
+
+### Versão instalada
+
+```bash
+steel --version        # steel 0.2.0 (abc1234, 2026-10-17)
+steel version          # versão, commit, data do build, plataforma e instalação
+steel version --json
 ```
 
 ## Primeiros passos
@@ -70,6 +111,7 @@ resultado.
 | `STEEL_CONFIG_DIR` | pasta de configuração (padrão `~/.config/steel`) |
 | `STEEL_NO_KEYCHAIN` | não usa o chaveiro; guarda o token no arquivo |
 | `STEEL_NO_UPDATE_NOTIFIER` | não avisa sobre versão nova |
+| `STEEL_MCP_TOKEN` | token de acesso do MCP para o `steel mcp` |
 | `NO_COLOR` | saída sem cores |
 
 Com `--json`, ou quando a saída não é um terminal, os comandos escrevem JSON
@@ -91,6 +133,33 @@ steel completion bash > ~/.local/share/bash-completion/completions/steel
 steel completion zsh > "${fpath[1]}/_steel"
 steel completion fish > ~/.config/fish/completions/steel.fish
 ```
+
+## `steel mcp`
+
+Ponte stdio para o servidor MCP do Steel (`<URL do perfil>/api/mcp`), para
+clientes de IA que só falam MCP por stdio ou não fazem o OAuth do Steel. O
+`steel mcp` repassa cada mensagem sem alterar e envia o token como
+`Authorization: Bearer`.
+
+```json
+{
+  "mcpServers": {
+    "steel": {
+      "command": "steel",
+      "args": ["mcp", "--profile", "homologacao"],
+      "env": { "STEEL_MCP_TOKEN": "<token de acesso do MCP>" }
+    }
+  }
+}
+```
+
+- O token é um **token de acesso OAuth do MCP do Steel** (o mesmo que um
+  cliente compatível recebe depois do consentimento), não o `stl_pat_` do
+  `steel login`. Passe por `STEEL_MCP_TOKEN` (de preferência) ou `--token`.
+- Revogue em **Ajustes › Apps conectados**.
+- O stdout é do protocolo: avisos e erros saem no stderr, em JSON.
+- Se o Steel recusar uma requisição (token inválido, sem permissão, fora do
+  ar), o cliente recebe um erro JSON-RPC na hora, sem ficar esperando.
 
 ## SDK
 
