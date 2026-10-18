@@ -35,7 +35,8 @@
         "noForEach": "off"
       },
       "suspicious": {
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off"
       },
       "style": {
         "noShoutyConstants": "off",

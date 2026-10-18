@@ -2,6 +2,7 @@
   "name": "steel-cli-monorepo",
   "private": true,
   "license": "UNLICENSED",
+  "type": "module",
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "node": ">=22.12.0"
@@ -12,13 +13,16 @@
     "check:ci": "biome ci --error-on-warnings .",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "sdk:generate": "pnpm --filter @steel-so/sdk generate"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@commitlint/cli": "21.2.3",
     "@commitlint/config-conventional": "21.2.3",
     "@types/node": "24.19.1",
+    "@vitest/coverage-v8": "5.0.3",
     "typescript": "6.0.3",
     "vite": "8.3.2",
     "vitest": "5.0.3"

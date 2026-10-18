@@ -1,13 +1,43 @@
 {
   "name": "@steel-so/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "SDK TypeScript da API pública v1 do Steel",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/steel-so/steel-cli.git",
+    "directory": "packages/sdk"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "openapi/openapi.v1.json"
+  ],
   "scripts": {
+    "generate": "tsx scripts/generate.ts",
+    "generate:check": "tsx scripts/generate.ts --check",
+    "build": "tsup && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "tsup": "8.5.1",
+    "tsx": "4.23.15"
   }
 }
