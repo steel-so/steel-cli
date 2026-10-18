@@ -1,3 +1,4 @@
+import type { Readable, Writable } from 'node:stream'
 import { createSteelClient, type SteelClient } from '@steel-so/sdk'
 import { renderToString } from 'ink'
 import type { ReactNode } from 'react'
@@ -43,6 +44,8 @@ export interface Deps {
   timeZone?: string
   /** Live (Ink) rendering; off in tests and outside a TTY. */
   live?: boolean
+  /** Raw process streams, for protocols over stdio (`steel mcp`). */
+  stdio?: { stdin: Readable; stdout: Writable }
 }
 
 export interface GlobalOptions {
