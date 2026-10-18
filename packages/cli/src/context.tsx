@@ -1,3 +1,4 @@
+import type { Readable, Writable } from 'node:stream'
 import { createSteelClient, type SteelClient } from '@steel-so/sdk'
 import { renderToString } from 'ink'
 import type { ReactNode } from 'react'
@@ -45,6 +46,8 @@ export interface Deps {
   live?: boolean
   /** Asks a yes/no question; undefined when stdin is not a terminal. */
   confirm?: (question: string) => Promise<boolean>
+  /** Raw process streams, for protocols over stdio (`steel mcp`). */
+  stdio?: { stdin: Readable; stdout: Writable }
 }
 
 export interface GlobalOptions {

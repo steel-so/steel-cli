@@ -15,6 +15,7 @@ pnpm test:coverage      # with coverage thresholds (CI gate)
 pnpm typecheck
 pnpm check              # Biome: lint + format + organize imports (writes)
 pnpm build              # tsup bundles
+pnpm compile            # single-file binary for this machine (needs Bun)
 pnpm --filter @steel-so/cli dev -- whoami   # run the CLI from sources
 ```
 
@@ -60,4 +61,86 @@ snapshot and `schema.ts`; CI runs `generate:check` and fails when they drift.
   tree).
 - **Commits:** Conventional Commits (commitlint runs in CI on PRs). Header up
   to 100 characters, lower-case subject, no trailing period.
-- **Versioning:** SemVer per package, independent of the app's CalVer.
+- **Versioning:** SemVer, independent of the app's CalVer. Both packages
+  are released together with the same version, taken from the git tag.
+
+## Releasing
+
+A release is a `v<semver>` tag; nothing is committed. `main` only takes pull
+requests, so the version in the `package.json` files is not the source of
+truth: `.github/workflows/release.yml` stamps the tag's version into both
+packages on the runner before building and publishing.
+
+```bash
+git switch main && git pull
+pnpm release:tool next            # suggests the next tag from the commits
+pnpm release:tool next minor      # or force patch / minor / major
+git tag -a v0.2.0 -m v0.2.0
+git push origin v0.2.0
+```
+
+Before 1.0.0 a breaking change bumps the minor and a feature the patch.
+Tags with a prerelease (`v1.0.0-rc.1`) publish to npm under `next`, are
+marked as prerelease on GitHub and skip Homebrew.
+
+The workflow then:
+
+1. **verify** — the tag is `v<semver>`; lint, typecheck, tests with
+   coverage and build.
+2. **binaries** — `bun build --compile` (`scripts/compile.ts`) on a native
+   runner per target (`linux-x64`, `linux-arm64`, `darwin-x64`,
+   `darwin-arm64`, `windows-x64`), with a smoke test of each binary. The
+   keychain addon is native, so each target is built on its own OS/CPU.
+   Pull requests that touch the release tooling run this job too.
+3. **github-release** — `SHA256SUMS`, signed build provenance for every
+   asset (`actions/attest-build-provenance`), and the release with notes
+   generated from the Conventional Commits since the previous tag (this is
+   the changelog). `install.sh` is attached as well.
+4. **npm** — `pnpm -r publish --provenance` of `@steel-so/sdk` and
+   `@steel-so/cli`. Skipped with a notice without `NPM_TOKEN`; versions
+   already on npm are skipped, so re-running is safe.
+5. **homebrew** — renders `Formula/steel.rb` from `SHA256SUMS` and pushes it
+   to `steel-so/homebrew-tap` over SSH. Skipped with a notice without
+   `TAP_DEPLOY_KEY`.
+
+A failed run can be re-run from the Actions tab; the release upload uses
+`--clobber` and the formula push is a no-op when nothing changed.
+
+Build metadata (`steel --version`, `steel version`) comes from
+`scripts/lib/build-info.ts`: `GITHUB_SHA` (or `git rev-parse HEAD`) and the
+build date (`SOURCE_DATE_EPOCH` when set), injected as `process.env.*`
+defines by tsup and Bun. From sources it says `dev`.
+
+### One-time setup (repository owner)
+
+**npm.** The `@steel-so` scope does not exist yet.
+
+1. Create the npm organization `steel-so` (free plan, public packages) and
+   add the maintainers.
+2. Create a granular access token with read and write on the `@steel-so`
+   scope (or a classic *Automation* token) and save it as the repository
+   secret `NPM_TOKEN` (Settings › Secrets and variables › Actions).
+3. After the first publish, prefer npm **trusted publishing**: on npmjs.com,
+   for each package, add a trusted publisher (GitHub Actions,
+   `steel-so/steel-cli`, workflow `release.yml`). Then remove `NPM_TOKEN`
+   and drop the `NPM_TOKEN` guard and `NODE_AUTH_TOKEN` from the `npm` job
+   (OIDC via `id-token: write` is already granted).
+
+**Homebrew tap.** `steel-so/homebrew-tap` exists (users run
+`brew install steel-so/tap/steel`).
+
+1. Generate a key pair just for this: `ssh-keygen -t ed25519 -N "" -C
+   steel-cli-release -f tap_deploy_key`.
+2. In `steel-so/homebrew-tap` › Settings › Deploy keys, add
+   `tap_deploy_key.pub` with **Allow write access**.
+3. In `steel-so/steel-cli`, save the private key `tap_deploy_key` as the
+   secret `TAP_DEPLOY_KEY`. Delete both local files afterwards.
+
+The formula is written to the tap's `main` branch; keep that branch free of
+rules that require pull requests for the deploy key.
+
+**Signing.** No secret is needed: binaries are signed through GitHub's
+artifact attestations (Sigstore, keyless) and npm packages carry
+provenance. macOS binaries are not notarized (no Apple Developer account);
+Homebrew and `install.sh` downloads are not quarantined, but a `.tar.gz`
+downloaded with a browser is: `xattr -d com.apple.quarantine steel`.
