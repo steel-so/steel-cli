@@ -65,8 +65,8 @@ export async function logout(ctx: Context) {
             {`Não foi possível revogar o token no Steel (${revocation.error.code}).`}
           </Warning>
           <Hint>
-            Ele continua válido até expirar; revogue em Ajustes › Segurança ›
-            Tokens de API.
+            Ele continua válido até expirar; revogue em Configurações ›
+            Segurança › Tokens de API.
           </Hint>
         </>
       ) : null}
