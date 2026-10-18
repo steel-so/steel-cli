@@ -103,7 +103,7 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
 
   program
     .command('logout')
-    .description('Apaga o token salvo do perfil')
+    .description('Revoga no Steel e apaga o token salvo do perfil')
     .action(run((ctx) => logout(ctx)))
 
   program

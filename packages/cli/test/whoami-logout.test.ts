@@ -101,11 +101,59 @@ describe('steel logout', () => {
       }
     })
 
+    h.reply(new Response(null, { status: 204 }))
+
     expect(await h.run('logout')).toBe(0)
     expect(h.out()).toContain('Você saiu do perfil homologacao.')
-    expect(h.out()).toContain('Tokens de API')
+    expect(h.out()).toContain('Token revogado no Steel.')
+    expect(h.out()).not.toContain('Tokens de API')
+    expect(h.requests[0]?.method).toBe('DELETE')
+    expect(new URL(h.requests[0]?.url ?? '').pathname).toBe(
+      '/api/v1/auth/token',
+    )
+    expect(h.requests[0]?.headers.get('authorization')).toBe(
+      'Bearer stl_pat_saved',
+    )
     expect(await h.keychain?.get('homologacao')).toBeUndefined()
     expect((await h.readConfig()).profiles.homologacao.session).toBeUndefined()
+  })
+
+  it('reports an already invalid token as revoked in JSON', async () => {
+    const h = await loggedIn()
+    h.reply(fail(401, 'UNAUTHORIZED'))
+
+    expect(await h.run('logout')).toBe(0)
+    expect(h.outJson()).toEqual({
+      profile: 'homologacao',
+      loggedOut: true,
+      revoked: true,
+    })
+  })
+
+  it('still removes the local copy when the revocation fails', async () => {
+    const h = await loggedIn({ tty: true })
+    h.reply(new TypeError('fetch failed'))
+
+    expect(await h.run('logout')).toBe(0)
+    expect(h.out()).toContain('Você saiu do perfil homologacao.')
+    expect(h.out()).toContain(
+      'Não foi possível revogar o token no Steel (NETWORK_ERROR).',
+    )
+    expect(h.out()).toContain('Tokens de API')
+    expect(await h.keychain?.get('homologacao')).toBeUndefined()
+  })
+
+  it('reports a failed revocation as JSON', async () => {
+    const h = await loggedIn()
+    h.reply(fail(500, 'INTERNAL_SERVER_ERROR'))
+
+    expect(await h.run('logout')).toBe(0)
+    expect(h.outJson()).toEqual({
+      profile: 'homologacao',
+      loggedOut: true,
+      revoked: false,
+      revokeError: 'INTERNAL_SERVER_ERROR',
+    })
   })
 
   it('reports as JSON when nothing was saved', async () => {
