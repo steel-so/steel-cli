@@ -49,7 +49,15 @@ export function notLoggedIn(profile: string): CliError {
 /** Translates an SDK error into what the user reads. */
 export function fromSteelError(error: SteelError, url: string): CliError {
   const base = { code: error.code, cause: error }
-  switch (error.code) {
+  // A 401/403 with a specific code (API_TOKEN_SCOPE_REQUIRED, a module
+  // that is off…) is still an auth failure: same message family, exit 3.
+  const kind =
+    error.status === 401
+      ? 'UNAUTHORIZED'
+      : error.status === 403
+        ? 'FORBIDDEN'
+        : error.code
+  switch (kind) {
     case 'NETWORK_ERROR':
       return new CliError(`Não foi possível conectar a ${url}.`, {
         ...base,

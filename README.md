@@ -18,7 +18,7 @@ brew install steel-so/tap/steel
 ```bash
 curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | sh
 # versão e pasta específicas:
-curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.2.0 STEEL_INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.1.0 STEEL_INSTALL_DIR=/usr/local/bin sh
 ```
 
 **npm** (Node.js 22.12 ou mais novo):
@@ -47,7 +47,7 @@ O pacote npm sai com `--provenance`: `npm audit signatures` confere.
 ### Versão instalada
 
 ```bash
-steel --version        # steel 0.2.0 (abc1234, 2026-10-17)
+steel --version        # steel 0.1.0 (cf5eae2, 2026-10-18)
 steel version          # versão, commit, data do build, plataforma e instalação
 steel version --json
 ```
@@ -122,7 +122,7 @@ o padrão) e `producao` (a URL de produção ainda será definida).
 
 ```bash
 steel api GET /servicedesk/tickets -q limit=5 -q status=open
-steel api POST /crm/leads -d '{"name":"Ana","email":"ana@exemplo.com"}'
+steel api POST /crm/leads -d '{"name":"Ana","emails":["ana@exemplo.com"],"source":"script"}'
 steel api POST /crm/leads -d @lead.json
 cat lead.json | steel api POST /crm/leads -d @-
 ```
@@ -308,7 +308,7 @@ import { verifySignature } from '@steel-so/sdk'
 
 // rawBody: o corpo exato recebido, antes de qualquer JSON.parse
 const valid = verifySignature(
-  process.env.STEEL_WEBHOOK_SECRET,
+  process.env.STEEL_WEBHOOK_SECRET ?? '',
   request.headers.get('steel-signature'),
   request.headers.get('steel-webhook-timestamp'),
   rawBody,
