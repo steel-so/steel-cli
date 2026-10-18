@@ -242,7 +242,8 @@ O segredo de um endpoint novo só aparece na criação: guarde-o na hora.
 | `STEEL_CONFIG_DIR` | pasta de configuração (padrão `~/.config/steel`) |
 | `STEEL_NO_KEYCHAIN` | não usa o chaveiro; guarda o token no arquivo |
 | `STEEL_NO_UPDATE_NOTIFIER` | não avisa sobre versão nova |
-| `STEEL_MCP_TOKEN` | token de acesso do MCP para o `steel mcp` |
+| `STEEL_MCP_TOKEN` | token de acesso do MCP para o `steel mcp`; tem precedência sobre o `steel mcp login` |
+| `STEEL_MCP_NO_LOGIN` | o `steel mcp` nunca abre o navegador sozinho |
 | `NO_COLOR` | saída sem cores |
 
 Com `--json`, ou quando a saída não é um terminal, os comandos escrevem JSON
@@ -254,7 +255,7 @@ estável no stdout, sem cores. Erros saem no stderr como
 | 0 | sucesso |
 | 1 | erro (rede, tempo esgotado, limite de requisições, servidor, qualquer outra resposta HTTP de erro) |
 | 2 | uso incorreto (comando, opção ou argumento) |
-| 3 | autenticação ou permissão: sem login, sem token do MCP, ou **qualquer** resposta 401/403 (token inválido, vencido ou revogado, sem o escopo `api:write`, módulo fora do token, sem o papel necessário) — inclusive no `steel api` |
+| 3 | autenticação ou permissão: sem login, sem login do MCP, ou **qualquer** resposta 401/403 (token inválido, vencido ou revogado, sem o escopo `api:write`, módulo fora do token, sem o papel necessário) — inclusive no `steel api` |
 | 130 | cancelado (Ctrl+C) |
 
 ## Autocomplete
@@ -272,23 +273,51 @@ clientes de IA que só falam MCP por stdio ou não fazem o OAuth do Steel. O
 `steel mcp` repassa cada mensagem sem alterar e envia o token como
 `Authorization: Bearer`.
 
+Autorize uma vez por perfil:
+
+```bash
+steel mcp login --profile homologacao   # abre o navegador; escolha workspace, módulos e escopos
+```
+
+Depois, configure o cliente MCP sem token nenhum:
+
 ```json
 {
   "mcpServers": {
     "steel": {
       "command": "steel",
-      "args": ["mcp", "--profile", "homologacao"],
-      "env": { "STEEL_MCP_TOKEN": "<token de acesso do MCP>" }
+      "args": ["mcp", "--profile", "homologacao"]
     }
   }
 }
 ```
 
-- O token é um **token de acesso OAuth do MCP do Steel** (o mesmo que um
-  cliente compatível recebe depois do consentimento), não o `stl_pat_` do
-  `steel login`. Passe por `STEEL_MCP_TOKEN` (de preferência) ou `--token`.
-- Revogue em **Configurações › Segurança › Apps conectados**.
-- O stdout é do protocolo: avisos e erros saem no stderr, em JSON.
+- O `steel mcp login` faz o OAuth 2.1 do MCP do Steel (código de autorização
+  com PKCE): descobre o servidor de autorização pela URL do perfil, registra
+  o CLI como app, abre o navegador na tela de consentimento e recebe a
+  resposta em `http://127.0.0.1:<porta>/callback`, só na sua máquina. Com
+  `--no-browser`, só mostra o link (abra no navegador da mesma máquina).
+- Pede os escopos `mcp:read mcp:write offline_access`; na tela de
+  consentimento você pode tirar a escrita. O `offline_access` traz o
+  refresh token.
+- Os tokens ficam no mesmo lugar do token do `steel login` (chaveiro do
+  sistema ou, sem ele, `~/.config/steel/credentials` com permissão 600), numa
+  entrada própria do perfil: um não apaga o outro.
+- O token de acesso vale 1 hora e o `steel mcp` renova sozinho um minuto
+  antes de vencer, ou na hora se o Steel responder 401 (e repete a
+  requisição uma vez). Vários `steel mcp` no mesmo perfil revezam a
+  renovação, porque o Steel troca o refresh token a cada uso.
+- O refresh token vale 30 dias e se renova a cada uso. Se vencer ou for
+  revogado, o cliente recebe um erro JSON-RPC pedindo `steel mcp login`.
+- Sem login salvo, o `steel mcp` tenta autorizar sozinho na primeira vez:
+  abre o navegador e espera. Se não conseguir abrir um navegador, ou com
+  `--no-login`, `CI` ou `STEEL_MCP_NO_LOGIN` definidas, termina na hora com
+  `MCP_LOGIN_REQUIRED` (saída 3).
+- `steel mcp logout` revoga no Steel e apaga os tokens do perfil. Também dá
+  para revogar em **Configurações › Segurança › Apps conectados**.
+- `STEEL_MCP_TOKEN` (ou `--token`) continua valendo e passa na frente do
+  login salvo: o token é enviado como está, sem renovação. Útil em CI.
+- O stdout é do protocolo: avisos e erros saem no stderr.
 - Se o Steel recusar uma requisição (token inválido, sem permissão, fora do
   ar), o cliente recebe um erro JSON-RPC na hora, sem ficar esperando.
 
