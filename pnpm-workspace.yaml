@@ -4,3 +4,6 @@ packages:
 # Supply-chain guard: refuse any version (direct or transitive) published
 # less than two weeks ago.
 minimumReleaseAge: 20160
+
+onlyBuiltDependencies:
+  - esbuild
