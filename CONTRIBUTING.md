@@ -104,9 +104,10 @@ The workflow then:
    asset (`actions/attest-build-provenance`), and the release with notes
    generated from the Conventional Commits since the previous tag (this is
    the changelog). `install.sh` is attached as well.
-4. **npm** — `pnpm -r publish --provenance` of `@steel-so/sdk` and
-   `@steel-so/cli`. Skipped with a notice without `NPM_TOKEN`; versions
-   already on npm are skipped, so re-running is safe.
+4. **npm** — `pnpm pack` + `npm publish --provenance` of `@steel-so/sdk`
+   and then `@steel-so/cli`, authenticated by npm **trusted publishing**
+   (OIDC, no token). Versions already on npm are skipped, so re-running is
+   safe.
 5. **homebrew** — renders `Formula/steel.rb` from `SHA256SUMS` and pushes it
    to `steel-so/homebrew-tap` over SSH. Skipped with a notice without
    `TAP_DEPLOY_KEY`.
@@ -121,18 +122,20 @@ defines by tsup and Bun. From sources it says `dev`.
 
 ### One-time setup (repository owner)
 
-**npm.** The `@steel-so` scope does not exist yet.
+**npm.** The organization `steel-so` and both packages exist (0.1.0 was
+published by hand on 2026-10-18). The account requires 2FA for writes, so a
+granular token cannot publish from CI; the workflow uses trusted publishing
+instead:
 
-1. Create the npm organization `steel-so` (free plan, public packages) and
-   add the maintainers.
-2. Create a granular access token with read and write on the `@steel-so`
-   scope (or a classic *Automation* token) and save it as the repository
-   secret `NPM_TOKEN` (Settings › Secrets and variables › Actions).
-3. After the first publish, prefer npm **trusted publishing**: on npmjs.com,
-   for each package, add a trusted publisher (GitHub Actions,
-   `steel-so/steel-cli`, workflow `release.yml`). Then remove `NPM_TOKEN`
-   and drop the `NPM_TOKEN` guard and `NODE_AUTH_TOKEN` from the `npm` job
-   (OIDC via `id-token: write` is already granted).
+1. On npmjs.com, for `@steel-so/sdk` and for `@steel-so/cli`: package
+   Settings › **Trusted Publisher** › GitHub Actions, organization
+   `steel-so`, repository `steel-cli`, workflow filename `release.yml`
+   (no environment).
+2. Optionally, in the same Settings, set **Publishing access** to "Require
+   two-factor authentication and disallow tokens": trusted publishing keeps
+   working and no token can publish.
+
+There is no `NPM_TOKEN` secret.
 
 **Homebrew tap.** `steel-so/homebrew-tap` exists (users run
 `brew install steel-so/tap/steel`).

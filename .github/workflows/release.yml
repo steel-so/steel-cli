@@ -7,7 +7,7 @@ name: Release
 #
 # Secrets (all optional; each step skips with a notice when its secret is
 # missing — see CONTRIBUTING.md › Releasing):
-#   NPM_TOKEN       npm automation token for the @steel-so scope
+#   (npm needs no secret: it publishes with trusted publishing over OIDC)
 #   TAP_DEPLOY_KEY  private ed25519 deploy key with write access to
 #                   steel-so/homebrew-tap
 
@@ -205,45 +205,49 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # npm provenance
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      id-token: write # npm trusted publishing (OIDC) and provenance
     steps:
-      - name: Skip without NPM_TOKEN
-        if: env.NPM_TOKEN == ''
-        run: echo "::notice::NPM_TOKEN is not set; skipping npm publish (see CONTRIBUTING.md › Releasing)."
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - if: env.NPM_TOKEN != ''
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
 
-      - if: env.NPM_TOKEN != ''
-        uses: pnpm/action-setup@a3252b78c470c02df07e9d59298aecedc3ccdd6d # v3
-
-      - if: env.NPM_TOKEN != ''
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - if: env.NPM_TOKEN != ''
-        run: pnpm install --frozen-lockfile
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@11.6.2
 
-      - if: env.NPM_TOKEN != ''
-        name: Stamp and build
+      - run: pnpm install --frozen-lockfile
+
+      - name: Stamp and build
         run: |
           pnpm --silent release:tool stamp "$GITHUB_REF_NAME"
           pnpm build
 
-      # pnpm skips a version that is already on npm, so a re-run is safe.
-      - if: env.NPM_TOKEN != ''
-        name: Publish @steel-so/sdk and @steel-so/cli
+      # `pnpm pack` swaps `workspace:*` for the real version; `npm publish`
+      # then authenticates over OIDC (no token). The SDK goes first because
+      # the CLI depends on it, and a version already on npm is skipped, so a
+      # re-run is safe.
+      - name: Publish @steel-so/sdk and @steel-so/cli
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           DIST_TAG: ${{ needs.verify.outputs.prerelease == 'true' && 'next' || 'latest' }}
-        run: >
-          pnpm -r publish --access public --provenance --no-git-checks
-          --tag "$DIST_TAG"
+        run: |
+          for pkg in sdk cli; do
+            dir="packages/$pkg"
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version > /dev/null 2>&1; then
+              echo "::notice::$name@$version is already on npm; skipping."
+              continue
+            fi
+            out="$RUNNER_TEMP/npm/$pkg"
+            mkdir -p "$out"
+            (cd "$dir" && pnpm pack --pack-destination "$out")
+            npm publish "$out"/*.tgz --access public --provenance --tag "$DIST_TAG"
+          done
 
   homebrew:
     name: Homebrew formula
