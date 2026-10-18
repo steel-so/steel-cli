@@ -7,10 +7,15 @@ import type {
   Me,
 } from './models.js'
 import {
-  errorFromResponse,
-  type SteelResult,
-  toNetworkError,
-} from './result.js'
+  type CrmResource,
+  crmResource,
+  type ServicedeskResource,
+  servicedeskResource,
+  settle,
+  type WhatsAppResource,
+  whatsappResource,
+} from './resources.js'
+import { type SteelResult, toNetworkError } from './result.js'
 
 export interface SteelClientOptions {
   /** Steel origin, e.g. `https://homologacao.stratustelecom.com.br`. */
@@ -44,6 +49,9 @@ export interface SteelClient {
   /** Fully typed `openapi-fetch` client over the v1 document. */
   api: Client<paths>
   me(): Promise<SteelResult<Me>>
+  servicedesk: ServicedeskResource
+  crm: CrmResource
+  whatsapp: WhatsAppResource
   auth: {
     startDevice(
       body?: DeviceAuthorizationRequest,
@@ -78,24 +86,6 @@ async function readBody(response: Response): Promise<unknown> {
   return text
 }
 
-type Fetched<T> = {
-  data?: { data: T }
-  error?: unknown
-  response: Response
-}
-
-async function settle<T>(call: Promise<Fetched<T>>): Promise<SteelResult<T>> {
-  try {
-    const { data, error, response } = await call
-    if (response.ok && data) {
-      return { ok: true, status: response.status, data: data.data }
-    }
-    return { ok: false, error: errorFromResponse(response, error) }
-  } catch (cause) {
-    return { ok: false, error: toNetworkError(cause) }
-  }
-}
-
 export function createSteelClient(options: SteelClientOptions): SteelClient {
   const baseUrl = trimTrailingSlash(options.baseUrl)
   const fetchImpl = options.fetch ?? globalThis.fetch
@@ -120,6 +110,9 @@ export function createSteelClient(options: SteelClientOptions): SteelClient {
   return {
     api,
     me: () => settle<Me>(api.GET('/api/v1/me')),
+    servicedesk: servicedeskResource(api),
+    crm: crmResource(api),
+    whatsapp: whatsappResource(api),
     auth: {
       startDevice: (body = {}) =>
         settle<DeviceAuthorization>(

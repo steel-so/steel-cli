@@ -10,3 +10,29 @@ export type DeviceAuthorization = Schemas['DeviceAuthorization']
 export type DeviceToken = Schemas['DeviceToken']
 export type Me = Schemas['Me']
 export type ErrorEnvelope = Schemas['ErrorEnvelope']
+
+/** One page of a cursor list (`?limit=&cursor=`). */
+export interface Page<T> {
+  items: T[]
+  nextCursor: string | null
+}
+
+export type SdTicketType = Schemas['SdTicketType']
+export type SdPhaseCategory = Schemas['SdPhaseCategory']
+export type SdPhaseSummary = Schemas['SdPhaseSummary']
+export type SdUserSummary = Schemas['SdUserSummary']
+export type SdTicket = Schemas['SdTicket']
+export type SdTicketCreate = Schemas['SdTicketCreate']
+export type SdTicketMessage = Schemas['SdTicketMessage']
+export type SdCatalogItem = Schemas['SdCatalogItem']
+export type CrmLeadStage = Schemas['CrmLeadStage']
+export type CrmLead = Schemas['CrmLead']
+export type CrmLeadCreate = Schemas['CrmLeadCreate']
+export type CrmLeadImportResult = Schemas['CrmLeadImportResult']
+export type CrmOpportunity = Schemas['CrmOpportunity']
+export type CrmPipeline = Schemas['CrmPipeline']
+export type CrmPipelineStage = Schemas['CrmPipelineStage']
+export type WhatsAppTemplate = Schemas['WhatsAppTemplate']
+export type WhatsAppTemplateSend = Schemas['WhatsAppTemplateSend']
+export type WhatsAppMessage = Schemas['WhatsAppMessage']
+export type WhatsAppBroadcast = Schemas['WhatsAppBroadcast']

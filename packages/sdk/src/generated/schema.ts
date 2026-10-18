@@ -37,6 +37,92 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/crm/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List leads */
+        get: operations["listCrmLeads"];
+        put?: never;
+        /** Create a lead */
+        post: operations["createCrmLead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crm/leads/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import up to 5,000 leads from a CSV */
+        post: operations["importCrmLeads"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crm/opportunities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List opportunities */
+        get: operations["listCrmOpportunities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crm/opportunities/{opportunityId}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move an opportunity to another stage */
+        post: operations["moveCrmOpportunityStage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/crm/pipelines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pipelines and their stages */
+        get: operations["listCrmPipelines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me": {
         parameters: {
             query?: never;
@@ -54,12 +140,233 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servicedesk/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog: categories, subcategories and services */
+        get: operations["listSdCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servicedesk/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tickets (open ones unless `status` says otherwise) */
+        get: operations["listSdTickets"];
+        put?: never;
+        /** Open a ticket */
+        post: operations["createSdTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servicedesk/tickets/{ticketId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One ticket by id or number */
+        get: operations["getSdTicket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servicedesk/tickets/{ticketId}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a public or internal comment */
+        post: operations["commentSdTicket"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/servicedesk/tickets/{ticketId}/phase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move a ticket to another phase */
+        post: operations["moveSdTicketPhase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/broadcasts/{broadcastId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Broadcast status and recipients */
+        get: operations["getWhatsAppBroadcast"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/messages/template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a template message */
+        post: operations["sendWhatsAppTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/whatsapp/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Message templates (approved unless `status` says otherwise) */
+        get: operations["listWhatsAppTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 };
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
         /** @enum {string} */
         ApiScope: "api:read" | "api:write";
+        CrmLead: {
+            channel: string | null;
+            city: string | null;
+            company: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            emails: string[];
+            id: string;
+            jobTitle: string | null;
+            name: string;
+            ownerId: string | null;
+            phones: string[];
+            score: number;
+            source: string | null;
+            stage: components["schemas"]["CrmLeadStage"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CrmLeadCreate: {
+            channel?: string;
+            city?: string;
+            company?: string;
+            emails?: string[];
+            jobTitle?: string;
+            linkedin?: string;
+            name: string;
+            phones?: string[];
+            source: string;
+        };
+        CrmLeadImportResult: {
+            created: number;
+            errors: {
+                code: string;
+                message: string;
+                row: number;
+            }[];
+            skipped: number;
+            total: number;
+        };
+        CrmLeadPage: {
+            items: components["schemas"]["CrmLead"][];
+            nextCursor: string | null;
+        };
+        /** @enum {string} */
+        CrmLeadStage: "RECEIVED" | "IN_CONTACT" | "QUALIFIED" | "OPPORTUNITY" | "PROPOSAL" | "CLOSED";
+        CrmOpportunity: {
+            amount: number | null;
+            closeDate: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            name: string;
+            ownerId: string | null;
+            pipelineId: string;
+            probability: number | null;
+            stageId: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CrmOpportunityPage: {
+            items: components["schemas"]["CrmOpportunity"][];
+            nextCursor: string | null;
+        };
+        CrmPipeline: {
+            id: string;
+            isDefault: boolean;
+            name: string;
+            position: number;
+            stages: components["schemas"]["CrmPipelineStage"][];
+        };
+        CrmPipelinePage: {
+            items: components["schemas"]["CrmPipeline"][];
+            nextCursor: string | null;
+        };
+        CrmPipelineStage: {
+            /** @enum {string} */
+            category: "OPEN" | "WON" | "LOST";
+            color: string | null;
+            id: string;
+            name: string;
+            pipelineId: string;
+            position: number;
+            probability: number;
+        };
         DeviceAuthorization: {
             deviceCode: string;
             /** @description Seconds until the device code expires */
@@ -113,12 +420,191 @@ export type components = {
         };
         /** @enum {string} */
         ModuleKind: "SERVICE_DESK" | "CRM" | "COMMUNICATION";
+        SdCatalogItem: {
+            active: boolean;
+            description: string | null;
+            id: string;
+            /** @enum {string} */
+            level: "CATEGORY" | "SUBCATEGORY" | "SERVICE";
+            name: string;
+            parentId: string | null;
+            position: number;
+            ticketTypes: components["schemas"]["SdTicketType"][];
+        };
+        SdCatalogPage: {
+            items: components["schemas"]["SdCatalogItem"][];
+            nextCursor: string | null;
+        };
+        SdLevelRef: {
+            color: string | null;
+            id: string;
+            level: number;
+            name: string;
+        };
+        /** @enum {string} */
+        SdPhaseCategory: "NEW" | "IN_PROGRESS" | "WAITING" | "RESOLVED" | "CLOSED" | "CANCELED";
+        SdPhaseSummary: {
+            category: components["schemas"]["SdPhaseCategory"];
+            color: string | null;
+            completionPercent: number;
+            id: string;
+            name: string;
+            position: number;
+        };
+        SdRef: {
+            color?: string | null;
+            id: string;
+            name: string;
+        };
+        SdSlaState: {
+            firstResponse: {
+                dueAt: string | null;
+                percentUsed: number | null;
+                remainingMinutes: number | null;
+                /** @enum {string} */
+                state: "ok" | "at_risk" | "breached" | "met" | "paused" | "none";
+            };
+            resolution: {
+                dueAt: string | null;
+                percentUsed: number | null;
+                remainingMinutes: number | null;
+                /** @enum {string} */
+                state: "ok" | "at_risk" | "breached" | "met" | "paused" | "none";
+            };
+        };
+        SdTicket: {
+            assignee: components["schemas"]["SdUserSummary"] | null;
+            category: components["schemas"]["SdRef"] | null;
+            /** @enum {string} */
+            channel: "AGENT" | "PORTAL" | "EMAIL" | "WHATSAPP" | "PHONE" | "AI" | "API";
+            closedAt: string | null;
+            code: string;
+            completionPercent: number;
+            /** Format: date-time */
+            createdAt: string;
+            description: string | null;
+            id: string;
+            /** Format: date-time */
+            lastActivityAt: string;
+            number: number;
+            phase: components["schemas"]["SdPhaseSummary"];
+            phaseId: string;
+            priority: components["schemas"]["SdLevelRef"] | null;
+            requester: components["schemas"]["SdUserSummary"] | null;
+            resolvedAt: string | null;
+            service: components["schemas"]["SdRef"] | null;
+            sla: components["schemas"]["SdSlaState"];
+            subcategory: components["schemas"]["SdRef"] | null;
+            tags: string[];
+            title: string;
+            type: components["schemas"]["SdTicketType"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SdTicketCreate: {
+            assigneeId?: string | null;
+            categoryId?: string | null;
+            description?: string;
+            priorityId?: string | null;
+            serviceId?: string | null;
+            subcategoryId?: string | null;
+            tags?: string[];
+            title: string;
+            type: components["schemas"]["SdTicketType"];
+        };
+        SdTicketMessage: {
+            author?: components["schemas"]["SdUserSummary"] | null;
+            body: string;
+            /** Format: date-time */
+            createdAt: string;
+            id: string;
+            ticketId: string;
+            /** @enum {string} */
+            visibility: "PUBLIC" | "INTERNAL";
+        };
+        SdTicketPage: {
+            items: components["schemas"]["SdTicket"][];
+            nextCursor: string | null;
+        };
+        /** @enum {string} */
+        SdTicketType: "INCIDENT" | "SERVICE_REQUEST" | "CHANGE" | "PROBLEM";
+        SdUserSummary: {
+            email: string;
+            id: string;
+            image: string | null;
+            name: string;
+        };
         SuccessEnvelope: {
             message?: string;
             statusCode: number;
             /** @constant */
             success: true;
         };
+        WhatsAppBroadcast: {
+            connectionId: string;
+            /** Format: date-time */
+            createdAt: string;
+            failedCount: number;
+            id: string;
+            name: string;
+            recipientCount: number;
+            recipients: {
+                contactId: string;
+                contactName: string | null;
+                contactWaId: string;
+                errorMessage: string | null;
+                id: string;
+                sentAt: string | null;
+                /** @enum {string} */
+                status: "PENDING" | "SENT" | "FAILED" | "SKIPPED";
+            }[];
+            scheduledAt: string | null;
+            sentCount: number;
+            skippedCount: number;
+            /** @enum {string} */
+            status: "DRAFT" | "QUEUED" | "RUNNING" | "DONE" | "FAILED";
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        WhatsAppMessage: {
+            conversationId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            direction: "IN" | "OUT";
+            id: string;
+            /** @enum {string} */
+            status: "PENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED";
+            type: string;
+        };
+        WhatsAppTemplate: {
+            category: string;
+            /** @description Template components as the Meta Graph API returns them (HEADER, BODY, FOOTER, BUTTONS). */
+            components: unknown[];
+            connectionId: string;
+            id: string;
+            language: string;
+            name: string;
+            /** @enum {string} */
+            quality: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
+            status: components["schemas"]["WhatsAppTemplateStatus"];
+        };
+        WhatsAppTemplatePage: {
+            items: components["schemas"]["WhatsAppTemplate"][];
+            nextCursor: string | null;
+        };
+        /** @description Target: `conversationId`, or `contactId` + `connectionId`, or `to` (phone, digits with country code; `connectionId` optional). `to` is a cli-domain addition to the contract. */
+        WhatsAppTemplateSend: {
+            components?: unknown[];
+            connectionId?: string;
+            contactId?: string;
+            conversationId?: string;
+            language: string;
+            templateName: string;
+            to?: string;
+        };
+        /** @enum {string} */
+        WhatsAppTemplateStatus: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED";
         WorkspaceRef: {
             id: string;
             name: string;
@@ -202,6 +688,195 @@ export interface operations {
             429: components["responses"]["Error"];
         };
     };
+    listCrmLeads: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                stage?: components["schemas"]["CrmLeadStage"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmLeadPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    createCrmLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrmLeadCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmLead"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    importCrmLeads: {
+        parameters: {
+            query?: {
+                source?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "text/csv": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmLeadImportResult"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    listCrmOpportunities: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                pipelineId?: string;
+                stageId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmOpportunityPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    moveCrmOpportunityStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                opportunityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pipelineId?: string;
+                    stageId: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmOpportunity"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    listCrmPipelines: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["CrmPipelinePage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
     getMe: {
         parameters: {
             query?: never;
@@ -223,6 +898,303 @@ export interface operations {
                 };
             };
             401: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    listSdCatalog: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+                ticketType?: components["schemas"]["SdTicketType"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdCatalogPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    listSdTickets: {
+        parameters: {
+            query?: {
+                /** @description User ids, `me` or `unassigned` */
+                assigneeId?: string[];
+                cursor?: string;
+                limit?: number;
+                phaseId?: string[];
+                priorityId?: string[];
+                q?: string;
+                status?: components["schemas"]["SdPhaseCategory"][];
+                type?: components["schemas"]["SdTicketType"][];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdTicketPage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    createSdTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SdTicketCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdTicket"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    getSdTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdTicket"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    commentSdTicket: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    body: string;
+                    /**
+                     * @default PUBLIC
+                     * @enum {string}
+                     */
+                    visibility?: "PUBLIC" | "INTERNAL";
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdTicketMessage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    moveSdTicketPhase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticketId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    comment?: string;
+                    phaseId: string;
+                    solution?: string;
+                    solutionClassificationId?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["SdTicket"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    getWhatsAppBroadcast: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                broadcastId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WhatsAppBroadcast"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+        };
+    };
+    sendWhatsAppTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppTemplateSend"];
+            };
+        };
+        responses: {
+            /** @description Sent */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WhatsAppMessage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            402: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            404: components["responses"]["Error"];
+            409: components["responses"]["Error"];
+            422: components["responses"]["Error"];
+            429: components["responses"]["Error"];
+            502: components["responses"]["Error"];
+        };
+    };
+    listWhatsAppTemplates: {
+        parameters: {
+            query?: {
+                connectionId?: string;
+                cursor?: string;
+                limit?: number;
+                status?: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | "DISABLED" | "ALL";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data: components["schemas"]["WhatsAppTemplatePage"];
+                    };
+                };
+            };
+            401: components["responses"]["Error"];
+            403: components["responses"]["Error"];
+            422: components["responses"]["Error"];
             429: components["responses"]["Error"];
         };
     };
