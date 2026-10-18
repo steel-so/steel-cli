@@ -1,0 +1,244 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Steel API v1 (contract fixture)",
+    "version": "0.0.0-fixture",
+    "description": "Hand-written fixture shaped after docs/cli/README.md of the Steel repo. Used to generate the SDK until the app publishes public/openapi.v1.json. Only the routes cli-core consumes are described."
+  },
+  "servers": [{ "url": "https://homologacao.stratustelecom.com.br" }],
+  "security": [{ "personalToken": [] }],
+  "paths": {
+    "/api/v1/auth/device": {
+      "post": {
+        "operationId": "startDeviceAuthorization",
+        "summary": "Start the CLI device login",
+        "tags": ["Auth"],
+        "security": [],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DeviceAuthorizationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device code issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "required": ["data"],
+                      "properties": { "data": { "$ref": "#/components/schemas/DeviceAuthorization" } }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "429": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/auth/device/token": {
+      "post": {
+        "operationId": "pollDeviceToken",
+        "summary": "Exchange an approved device code for a personal token",
+        "tags": ["Auth"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["deviceCode"],
+                "properties": { "deviceCode": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved: the personal token (returned only once)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "required": ["data"],
+                      "properties": { "data": { "$ref": "#/components/schemas/DeviceToken" } }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": { "$ref": "#/components/responses/Error" },
+          "410": { "$ref": "#/components/responses/Error" },
+          "428": { "$ref": "#/components/responses/Error" },
+          "429": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "The user, workspace and token behind the current personal token",
+        "tags": ["Me"],
+        "responses": {
+          "200": {
+            "description": "Current identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/SuccessEnvelope" },
+                    {
+                      "type": "object",
+                      "required": ["data"],
+                      "properties": { "data": { "$ref": "#/components/schemas/Me" } }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "429": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "personalToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Personal API token (stl_pat_...)"
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Error envelope",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorEnvelope" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "SuccessEnvelope": {
+        "type": "object",
+        "required": ["success", "statusCode"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "statusCode": { "type": "integer" },
+          "message": { "type": "string" }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["success", "statusCode", "error"],
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "statusCode": { "type": "integer" },
+          "message": { "type": "string" },
+          "error": {
+            "type": "object",
+            "required": ["code"],
+            "properties": {
+              "code": { "type": "string" },
+              "details": {}
+            }
+          }
+        }
+      },
+      "ApiScope": { "type": "string", "enum": ["api:read", "api:write"] },
+      "ModuleKind": {
+        "type": "string",
+        "enum": ["SERVICE_DESK", "CRM", "COMMUNICATION"]
+      },
+      "WorkspaceRef": {
+        "type": "object",
+        "required": ["id", "slug", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "slug": { "type": "string" },
+          "name": { "type": "string" }
+        }
+      },
+      "DeviceAuthorizationRequest": {
+        "type": "object",
+        "properties": {
+          "clientName": { "type": "string", "maxLength": 80 },
+          "deviceName": { "type": "string", "maxLength": 120 }
+        }
+      },
+      "DeviceAuthorization": {
+        "type": "object",
+        "required": [
+          "deviceCode",
+          "userCode",
+          "verificationUri",
+          "verificationUriComplete",
+          "interval",
+          "expiresIn"
+        ],
+        "properties": {
+          "deviceCode": { "type": "string" },
+          "userCode": { "type": "string" },
+          "verificationUri": { "type": "string", "format": "uri" },
+          "verificationUriComplete": { "type": "string", "format": "uri" },
+          "interval": { "type": "integer", "description": "Seconds between polls" },
+          "expiresIn": { "type": "integer", "description": "Seconds until the device code expires" }
+        }
+      },
+      "DeviceToken": {
+        "type": "object",
+        "required": ["token", "tokenId", "expiresAt", "workspace", "scopes", "modules"],
+        "properties": {
+          "token": { "type": "string", "pattern": "^stl_pat_" },
+          "tokenId": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "workspace": { "$ref": "#/components/schemas/WorkspaceRef" },
+          "scopes": { "type": "array", "items": { "$ref": "#/components/schemas/ApiScope" } },
+          "modules": { "type": "array", "items": { "$ref": "#/components/schemas/ModuleKind" } }
+        }
+      },
+      "Me": {
+        "type": "object",
+        "required": ["user", "workspace", "scopes", "modules", "token"],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": ["id", "name", "email"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "email": { "type": "string", "format": "email" }
+            }
+          },
+          "workspace": { "$ref": "#/components/schemas/WorkspaceRef" },
+          "scopes": { "type": "array", "items": { "$ref": "#/components/schemas/ApiScope" } },
+          "modules": { "type": "array", "items": { "$ref": "#/components/schemas/ModuleKind" } },
+          "token": {
+            "type": "object",
+            "required": ["id", "expiresAt"],
+            "properties": {
+              "id": { "type": "string" },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
