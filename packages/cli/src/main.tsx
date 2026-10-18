@@ -6,6 +6,7 @@ import { configDir } from './config/paths.js'
 import { Context, type Deps } from './context.js'
 import { CliError, EXIT, usageError } from './errors.js'
 import { openBrowser } from './lib/open-browser.js'
+import { readlinePrompter } from './lib/prompt.js'
 import { checkForUpdate } from './lib/update-check.js'
 import { buildProgram } from './program.js'
 import { Code, Warning } from './ui/components.js'
@@ -144,5 +145,9 @@ export function processDeps(): Deps {
     hostname,
     interrupt: interrupt.signal,
     live: Boolean(process.stdout.isTTY),
+    prompt:
+      process.stdin.isTTY && process.stdout.isTTY
+        ? readlinePrompter(process.stdin, process.stderr, interrupt.signal)
+        : undefined,
   }
 }

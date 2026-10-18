@@ -1,6 +1,7 @@
 import { Command, Help } from 'commander'
 import { api } from './commands/api.js'
 import { completionScript } from './commands/completion.js'
+import { registerDomainCommands } from './commands/domain.js'
 import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
 import {
@@ -151,6 +152,8 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
         }),
       ),
     )
+
+  registerDomainCommands(program, run)
 
   program
     .command('completion')
