@@ -11,11 +11,13 @@
     "build": "pnpm -r --if-present build",
     "check": "biome check --write .",
     "check:ci": "biome ci --error-on-warnings .",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p scripts/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "sdk:generate": "pnpm --filter @steel-so/sdk generate"
+    "sdk:generate": "pnpm --filter @steel-so/sdk generate",
+    "compile": "bun scripts/compile.ts",
+    "release:tool": "tsx scripts/release.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
@@ -23,6 +25,7 @@
     "@commitlint/config-conventional": "21.2.3",
     "@types/node": "24.19.1",
     "@vitest/coverage-v8": "5.0.3",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
     "vite": "8.3.2",
     "vitest": "5.0.3"

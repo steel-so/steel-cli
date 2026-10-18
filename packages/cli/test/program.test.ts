@@ -27,7 +27,7 @@ describe('program', () => {
   it('prints the version', async () => {
     const h = harness()
     expect(await h.run('--version')).toBe(0)
-    expect(h.out()).toBe(`${VERSION}\n`)
+    expect(h.out()).toBe(`steel ${VERSION} (dev)\n`)
   })
 
   it.each([

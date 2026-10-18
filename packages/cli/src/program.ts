@@ -5,6 +5,7 @@ import { registerDomainCommands } from './commands/domain.js'
 import { listen } from './commands/listen.js'
 import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
+import { mcp } from './commands/mcp.js'
 import {
   profileAdd,
   profileList,
@@ -12,6 +13,7 @@ import {
   profileUse,
 } from './commands/profile.js'
 import { trigger } from './commands/trigger.js'
+import { version } from './commands/version.js'
 import {
   DELIVERY_STATUSES,
   deliveriesList,
@@ -24,7 +26,7 @@ import {
 } from './commands/webhooks.js'
 import { whoami } from './commands/whoami.js'
 import { Context, type Deps, type GlobalOptions } from './context.js'
-import { VERSION } from './version.js'
+import { versionLine } from './version.js'
 
 const TITLES: Record<string, string> = {
   'Usage:': 'Uso:',
@@ -78,7 +80,7 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
 
   program
     .description('Steel no terminal: login, chamadas à API v1 e automações.')
-    .version(VERSION, '-v, --version', 'mostra a versão')
+    .version(versionLine(), '-v, --version', 'mostra a versão')
     .helpOption('-h, --help', 'mostra a ajuda')
     .helpCommand('help [comando]', 'Mostra a ajuda de um comando')
     .option('--json', 'saída em JSON (padrão fora de um terminal)')
@@ -291,6 +293,26 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
     .description('Reenvia uma entrega (mesmo corpo e mesmo id)')
     .argument('<id>', 'ID da entrega')
     .action(run((ctx, [id]) => deliveriesRetry(ctx, id as string)))
+
+  program
+    .command('version')
+    .description('Mostra versão, commit, data do build e plataforma')
+    .action(run((ctx) => version(ctx)))
+
+  program
+    .command('mcp')
+    .description(
+      'Ponte stdio para o servidor MCP do Steel (clientes sem OAuth)',
+    )
+    .option(
+      '--token <token>',
+      'token de acesso do MCP do Steel (prefira STEEL_MCP_TOKEN)',
+    )
+    .addHelpText(
+      'after',
+      '\nO protocolo usa stdin/stdout; avisos saem no stderr.\nExemplo de configuração do cliente MCP:\n  { "command": "steel", "args": ["mcp", "--profile", "homologacao"],\n    "env": { "STEEL_MCP_TOKEN": "<token>" } }\n',
+    )
+    .action(run((ctx, _, options) => mcp(ctx, { token: options.token })))
 
   program
     .command('completion')

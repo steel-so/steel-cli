@@ -11,7 +11,7 @@ import { readlinePrompter } from './lib/prompt.js'
 import { checkForUpdate } from './lib/update-check.js'
 import { buildProgram } from './program.js'
 import { Code, Warning } from './ui/components.js'
-import { PACKAGE_NAME, VERSION } from './version.js'
+import { PACKAGE_NAME, upgradeCommand, VERSION } from './version.js'
 
 /** Wait at most this long after the command for the update check. */
 const UPDATE_GRACE_MS = 150
@@ -114,7 +114,7 @@ export async function runCli(argv: string[], deps: Deps): Promise<number> {
       new Context(deps, {}).render(
         <Warning>
           Nova versão do Steel CLI: {VERSION} → {latest}. Atualize com{' '}
-          <Code>npm install -g {PACKAGE_NAME}</Code>.
+          <Code>{upgradeCommand()}</Code>.
         </Warning>,
         deps.io.stderr,
       )
@@ -153,5 +153,6 @@ export function processDeps(): Deps {
     confirm: process.stdin.isTTY
       ? (question) => confirmPrompt(question)
       : undefined,
+    stdio: { stdin: process.stdin, stdout: process.stdout },
   }
 }
