@@ -5,7 +5,7 @@ import { registerDomainCommands } from './commands/domain.js'
 import { listen } from './commands/listen.js'
 import { login } from './commands/login.js'
 import { logout } from './commands/logout.js'
-import { mcp } from './commands/mcp.js'
+import { mcp, mcpLogin, mcpLogout } from './commands/mcp.js'
 import {
   profileAdd,
   profileList,
@@ -299,20 +299,38 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
     .description('Mostra versão, commit, data do build e plataforma')
     .action(run((ctx) => version(ctx)))
 
-  program
+  const mcpCommand = program
     .command('mcp')
     .description(
       'Ponte stdio para o servidor MCP do Steel (clientes sem OAuth)',
     )
     .option(
       '--token <token>',
-      'token de acesso do MCP do Steel (prefira STEEL_MCP_TOKEN)',
+      'token de acesso do MCP (em vez do login; prefira STEEL_MCP_TOKEN)',
     )
+    .option('--no-login', 'sem login salvo, falha em vez de abrir o navegador')
     .addHelpText(
       'after',
-      '\nO protocolo usa stdin/stdout; avisos saem no stderr.\nExemplo de configuração do cliente MCP:\n  { "command": "steel", "args": ["mcp", "--profile", "homologacao"],\n    "env": { "STEEL_MCP_TOKEN": "<token>" } }\n',
+      '\nO protocolo usa stdin/stdout; avisos saem no stderr.\nAutorize uma vez com `steel mcp login`; o token renova sozinho.\nExemplo de configuração do cliente MCP:\n  { "command": "steel", "args": ["mcp", "--profile", "homologacao"] }\n',
     )
-    .action(run((ctx, _, options) => mcp(ctx, { token: options.token })))
+    .action(
+      run((ctx, _, options) =>
+        mcp(ctx, { token: options.token, login: options.login }),
+      ),
+    )
+
+  mcpCommand
+    .command('login')
+    .description('Autoriza o MCP do Steel pelo navegador e guarda o token')
+    .option('--no-browser', 'não abre o navegador; só mostra o link')
+    .action(
+      run((ctx, _, options) => mcpLogin(ctx, { browser: options.browser })),
+    )
+
+  mcpCommand
+    .command('logout')
+    .description('Revoga no Steel e apaga o token do MCP do perfil')
+    .action(run((ctx) => mcpLogout(ctx)))
 
   program
     .command('completion')
