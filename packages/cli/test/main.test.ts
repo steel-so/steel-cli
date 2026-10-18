@@ -31,6 +31,21 @@ describe('processDeps', () => {
     expect(await deps.openBrowser('ftp://nope')).toBe(false)
   })
 
+  it('only builds the prompter with a terminal on stdin and stdout', () => {
+    const stdin = process.stdin.isTTY
+    const stdout = process.stdout.isTTY
+    try {
+      process.stdin.isTTY = true
+      process.stdout.isTTY = true
+      expect(processDeps().prompt).toBeDefined()
+      process.stdin.isTTY = false
+      expect(processDeps().prompt).toBeUndefined()
+    } finally {
+      process.stdin.isTTY = stdin
+      process.stdout.isTTY = stdout
+    }
+  })
+
   it('turns the keychain off with STEEL_NO_KEYCHAIN', () => {
     vi.stubEnv('STEEL_NO_KEYCHAIN', '1')
     expect(processDeps().keychain).toBeNull()

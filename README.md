@@ -4,8 +4,6 @@
 em scripts e no CI, e receba os webhooks do Steel na sua máquina. Este
 repositório também traz o SDK TypeScript `@steel-so/sdk`.
 
-> Comandos de ServiceDesk, CRM e Comunicação chegam nas próximas versões.
-
 ## Instalação
 
 **Homebrew** (macOS e Linux):
@@ -99,6 +97,45 @@ cat lead.json | steel api POST /crm/leads -d @-
 O caminho é relativo a `/api/v1` (`/me` e `/api/v1/me` são a mesma rota). A
 resposta sai em JSON no stdout, inclusive em erro; o código de saída indica o
 resultado.
+
+## ServiceDesk, CRM e Comunicação
+
+```bash
+steel sd ticket list --assignee me --status aguardando   # só os abertos, sem --status
+steel sd ticket view 42                                   # id ou número
+steel sd ticket create --type incidente --title "VPN fora do ar"
+steel sd ticket comment 42 -m "Já estamos olhando" --internal
+steel sd ticket move 42 --phase <id-da-fase> --solution @solucao.md
+steel sd catalog --type requisicao
+
+steel crm lead list --stage qualificado
+steel crm lead create --name "Ana Souza" --email ana@exemplo.com
+steel crm lead import leads.csv --source Feira             # até 5.000 linhas
+steel crm opportunity list --pipeline <id>
+steel crm opportunity move <id> --stage Proposta --pipeline Vendas
+steel crm pipelines
+
+steel zap templates                                       # aprovados; --status todos
+steel zap send --template boas_vindas --to 5511999990000 --var 1=Ana
+steel zap broadcast status <id>
+```
+
+- **Listas** vêm em páginas: `--limit` (1 a 100, padrão 25), `--cursor`
+  (o próximo é sugerido no fim da tabela) e `--all` (todas as páginas).
+  Em JSON, a saída é `{ "items": [...], "nextCursor": "..." | null }`.
+- **No terminal**, o que faltar (tipo e título do chamado, etapa, template,
+  número, variáveis...) é perguntado, e toda alteração pede confirmação.
+  `--yes` pula a confirmação. Fora de um terminal (scripts, CI) nada é
+  perguntado: falta de opção obrigatória é erro de uso (código 2).
+- `--type`, `--status` e `--stage` aceitam o nome em português
+  (`incidente`, `aguardando`, `em-contato`) ou o valor da API (`INCIDENT`).
+- Textos longos (`--description`, `-m`, `--solution`) aceitam `@arquivo` ou
+  `@-` (stdin).
+- `steel crm lead import` sai com código 1 quando alguma linha volta com
+  erro; a resposta lista cada linha.
+- `steel zap send`: variáveis do corpo como `--var 1=Ana` (ou
+  `--var nome=Ana`), do cabeçalho como `--var header.1=valor`. Em vez de
+  `--to`, use `--contact <id>` ou `--conversation <id>`.
 
 ## Webhooks na sua máquina
 
@@ -251,6 +288,10 @@ segredo do endpoint. `verifySignature` compara em tempo constante, aceita
 várias assinaturas separadas por vírgula (troca de segredo) e recusa
 timestamps a mais de 5 minutos do relógio local (ajuste com
 `{ toleranceSeconds }`). Nunca lança exceção.
+
+Os módulos têm atalhos tipados: `steel.servicedesk.tickets.list()`,
+`steel.crm.leads.import(csv)`, `steel.whatsapp.sendTemplate(...)` e o
+`collectAll(...)` para percorrer todas as páginas de uma lista.
 
 O SDK também expõe `steel.webhooks` (catálogo, endpoints, entregas,
 `trigger`) e `steel.webhooks.listen()`, o stream SSE usado pelo

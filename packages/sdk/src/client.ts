@@ -6,6 +6,14 @@ import type {
   DeviceToken,
   Me,
 } from './models.js'
+import {
+  type CrmResource,
+  crmResource,
+  type ServicedeskResource,
+  servicedeskResource,
+  type WhatsAppResource,
+  whatsappResource,
+} from './resources.js'
 import { type SteelResult, settle, toNetworkError } from './result.js'
 import { createWebhooksApi, type WebhooksApi } from './webhooks.js'
 
@@ -41,6 +49,9 @@ export interface SteelClient {
   /** Fully typed `openapi-fetch` client over the v1 document. */
   api: Client<paths>
   me(): Promise<SteelResult<Me>>
+  servicedesk: ServicedeskResource
+  crm: CrmResource
+  whatsapp: WhatsAppResource
   auth: {
     startDevice(
       body?: DeviceAuthorizationRequest,
@@ -101,6 +112,9 @@ export function createSteelClient(options: SteelClientOptions): SteelClient {
   return {
     api,
     me: () => settle<Me>(api.GET('/api/v1/me')),
+    servicedesk: servicedeskResource(api),
+    crm: crmResource(api),
+    whatsapp: whatsappResource(api),
     auth: {
       startDevice: (body = {}) =>
         settle<DeviceAuthorization>(

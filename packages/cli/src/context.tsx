@@ -11,6 +11,7 @@ import { configDir, type Env } from './config/paths.js'
 import { isPlaceholderUrl, normalizeBaseUrl } from './config/profiles.js'
 import { ConfigStore, type ProfileConfig } from './config/store.js'
 import { CliError, EXIT, notLoggedIn, usageError } from './errors.js'
+import type { Prompter } from './lib/prompt.js'
 import { ErrorMessage } from './ui/components.js'
 import { VERSION } from './version.js'
 
@@ -44,6 +45,8 @@ export interface Deps {
   timeZone?: string
   /** Live (Ink) rendering; off in tests and outside a TTY. */
   live?: boolean
+  /** Terminal questions; only set when stdin and stdout are TTYs. */
+  prompt?: Prompter
   /** Asks a yes/no question; undefined when stdin is not a terminal. */
   confirm?: (question: string) => Promise<boolean>
   /** Raw process streams, for protocols over stdio (`steel mcp`). */
@@ -98,6 +101,19 @@ export class Context {
 
   get live(): boolean {
     return Boolean(this.deps.live) && !this.json
+  }
+
+  /**
+   * Whether commands may ask for missing flags: a terminal on both ends and
+   * no `--json`.
+   */
+  get interactive(): boolean {
+    return Boolean(this.deps.prompt) && !this.json
+  }
+
+  get prompt(): Prompter {
+    if (!this.deps.prompt) throw new Error('prompt used outside a terminal')
+    return this.deps.prompt
   }
 
   /** Profile name and URL, after `--profile`, STEEL_PROFILE and STEEL_URL. */
