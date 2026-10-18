@@ -33,6 +33,8 @@ The CLI never touches your real config in tests: every test gets its own
 - `packages/cli/src/commands/*` — one module per command; `program.ts` wires
   them into commander; `context.tsx` resolves profile, URL and token.
 - `packages/cli/src/ui/*` — Ink components and the Steel palette.
+- `scripts/` — release tooling (`release.ts`, `compile.ts`) and the
+  contract test (`contract.ts`, `lib/openapi-compat.ts`).
 
 ## Regenerating the SDK
 
@@ -95,20 +97,23 @@ The workflow then:
 
 1. **verify** — the tag is `v<semver>`; lint, typecheck, tests with
    coverage and build.
-2. **binaries** — `bun build --compile` (`scripts/compile.ts`) on a native
+2. **contract** — the contract test against the Steel homologação
+   (ADR 0034), see [Contract test](#contract-test). Nothing is published
+   unless it passes.
+3. **binaries** — `bun build --compile` (`scripts/compile.ts`) on a native
    runner per target (`linux-x64`, `linux-arm64`, `darwin-x64`,
    `darwin-arm64`, `windows-x64`), with a smoke test of each binary. The
    keychain addon is native, so each target is built on its own OS/CPU.
    Pull requests that touch the release tooling run this job too.
-3. **github-release** — `SHA256SUMS`, signed build provenance for every
+4. **github-release** — `SHA256SUMS`, signed build provenance for every
    asset (`actions/attest-build-provenance`), and the release with notes
    generated from the Conventional Commits since the previous tag (this is
    the changelog). `install.sh` is attached as well.
-4. **npm** — `pnpm pack` + `npm publish --provenance` of `@steel-so/sdk`
+5. **npm** — `pnpm pack` + `npm publish --provenance` of `@steel-so/sdk`
    and then `@steel-so/cli`, authenticated by npm **trusted publishing**
    (OIDC, no token). Versions already on npm are skipped, so re-running is
    safe.
-5. **homebrew** — renders `Formula/steel.rb` from `SHA256SUMS` and pushes it
+6. **homebrew** — renders `Formula/steel.rb` from `SHA256SUMS` and pushes it
    to `steel-so/homebrew-tap` over SSH. Skipped with a notice without
    `TAP_DEPLOY_KEY`.
 
@@ -119,6 +124,34 @@ Build metadata (`steel --version`, `steel version`) comes from
 `scripts/lib/build-info.ts`: `GITHUB_SHA` (or `git rev-parse HEAD`) and the
 build date (`SOURCE_DATE_EPOCH` when set), injected as `process.env.*`
 defines by tsup and Bun. From sources it says `dev`.
+
+### Contract test
+
+Job `contract` of `release.yml`. It runs on every tag (before the GitHub
+release and npm), on pull requests that touch the release tooling or the
+SDK snapshot, and on demand: Actions › Release › **Run workflow** (an
+optional Steel URL, homologação by default). A manual run only runs this
+job; it never builds binaries or publishes.
+
+1. **OpenAPI compatibility** — downloads
+   `https://homologacao.stratustelecom.com.br/dev/api/v1/openapi.json` and
+   compares it with `packages/sdk/openapi/openapi.v1.json`, the snapshot
+   the SDK was generated from. A removed path, operation, success status or
+   field, a type change, or a newly required request field or parameter
+   fails the release; additions pass. The checker
+   (`scripts/lib/openapi-compat.ts`) is a port of Steel's
+   `src/openapi/v1/compat.ts` (`pnpm openapi:v1:compat` there): keep the
+   two in sync. Locally: `pnpm contract:check [url-or-path]`.
+2. **Read-only smoke** — with the secret `STEEL_CONTRACT_TOKEN`, builds the
+   CLI and runs `steel whoami --json`, `steel sd catalog --json` and
+   `steel crm pipelines --json` against
+   `STEEL_URL=https://homologacao.stratustelecom.com.br`, checking that each
+   prints JSON and exits 0. It fails when the token has `api:write`.
+   Without the secret it is skipped with a notice.
+
+A snapshot that is newer than the homologação (routes the Steel has not
+deployed there yet) fails step 1 as well: release only after the Steel
+change reaches the homologação.
 
 ### One-time setup (repository owner)
 
@@ -149,6 +182,24 @@ There is no `NPM_TOKEN` secret.
 
 The formula is written to the tap's `main` branch; keep that branch free of
 rules that require pull requests for the deploy key.
+
+**Contract token.** `STEEL_CONTRACT_TOKEN` is a personal token on the
+Steel homologação, used only for the read-only smoke:
+
+1. Sign in at `https://homologacao.stratustelecom.com.br` with a dedicated
+   account that is a member of a test workspace with the **ServiceDesk**
+   and **CRM** modules on (e.g. the smoke workspace) — not a personal
+   account.
+2. Profile menu › **Configurações › Segurança › Tokens de API** › new
+   token: that workspace, modules ServiceDesk and CRM, scope **`api:read`**
+   (never `api:write`), the longest expiry offered. Copy the value
+   (`stl_pat_...`); it is shown only once. `steel login --profile
+   homologacao` with the same choices works too (`steel whoami` shows the
+   token's scopes and expiry).
+3. In `steel-so/steel-cli` › Settings › Secrets and variables › Actions,
+   save it as the repository secret `STEEL_CONTRACT_TOKEN`.
+4. Before it expires, create a new one and replace the secret; revoke the
+   old one in the same screen.
 
 **Signing.** No secret is needed: binaries are signed through GitHub's
 artifact attestations (Sigstore, keyless) and npm packages carry
