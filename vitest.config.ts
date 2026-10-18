@@ -2,11 +2,11 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    projects: ['packages/*'],
+    projects: ['packages/*', 'scripts'],
     passWithNoTests: true,
     coverage: {
       provider: 'v8',
-      include: ['packages/*/src/**'],
+      include: ['packages/*/src/**', 'scripts/lib/**'],
       exclude: [
         'packages/sdk/src/generated/**',
         // Two lines of process wiring; everything it calls is tested.
