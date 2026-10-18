@@ -43,6 +43,16 @@ describe('errors', () => {
       'Módulo desativado',
       3,
     ],
+    [
+      {
+        status: 403,
+        code: 'API_TOKEN_SCOPE_REQUIRED',
+        message: 'Este token só pode ler',
+      },
+      'Este token só pode ler',
+      3,
+    ],
+    [{ status: 401, code: 'API_TOKEN_EXPIRED' }, 'Token inválido', 3],
     [{ status: 429, code: 'RATE_LIMITED' }, 'Muitas requisições', 1],
     [{ status: 418, code: 'TEAPOT' }, 'O Steel respondeu 418 (TEAPOT).', 1],
     [
