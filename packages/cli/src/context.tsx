@@ -43,6 +43,8 @@ export interface Deps {
   timeZone?: string
   /** Live (Ink) rendering; off in tests and outside a TTY. */
   live?: boolean
+  /** Asks a yes/no question; undefined when stdin is not a terminal. */
+  confirm?: (question: string) => Promise<boolean>
 }
 
 export interface GlobalOptions {
