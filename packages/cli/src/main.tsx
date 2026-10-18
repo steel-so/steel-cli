@@ -1,9 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { hostname } from 'node:os'
 import { CommanderError } from 'commander'
+import { dashboard } from './commands/dashboard.js'
 import { keychainBackend } from './config/credentials.js'
 import { configDir } from './config/paths.js'
-import { Context, type Deps } from './context.js'
+import { Context, type Deps, type GlobalOptions } from './context.js'
 import { CliError, EXIT, usageError } from './errors.js'
 import { confirmPrompt } from './lib/confirm.js'
 import { openBrowser } from './lib/open-browser.js'
@@ -44,6 +45,32 @@ export function translateCommanderError(error: CommanderError): CliError {
   }
 }
 
+/**
+ * `steel`, optionally with `--profile <nome>` or `--no-color`: no command,
+ * so the dashboard (on a terminal) or the help. Anything else goes to
+ * commander. Returns the global options, or undefined.
+ */
+export function bareInvocation(argv: string[]): GlobalOptions | undefined {
+  const options: GlobalOptions = {}
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] as string
+    if (arg === '--no-color') {
+      options.color = false
+    } else if (
+      arg === '--profile' &&
+      argv[i + 1] &&
+      !argv[i + 1]?.startsWith('-')
+    ) {
+      options.profile = argv[++i]
+    } else if (arg.startsWith('--profile=') && arg.length > 10) {
+      options.profile = arg.slice(10)
+    } else {
+      return undefined
+    }
+  }
+  return options
+}
+
 function shouldCheckForUpdates(deps: Deps, argv: string[]): boolean {
   const { env } = deps
   return Boolean(
@@ -70,7 +97,10 @@ export async function runCli(argv: string[], deps: Deps): Promise<number> {
     : undefined
 
   try {
-    if (argv.length === 0) {
+    const bare = bareInvocation(argv)
+    if (bare && deps.terminal && deps.live) {
+      state.exitCode = await dashboard(new Context(deps, bare), deps.terminal)
+    } else if (bare) {
       program.outputHelp()
     } else {
       await program.parseAsync(argv, { from: 'user' })
@@ -154,5 +184,13 @@ export function processDeps(): Deps {
       ? (question) => confirmPrompt(question)
       : undefined,
     stdio: { stdin: process.stdin, stdout: process.stdout },
+    terminal:
+      process.stdin.isTTY && process.stdout.isTTY
+        ? {
+            stdin: process.stdin,
+            stdout: process.stdout,
+            stderr: process.stderr,
+          }
+        : undefined,
   }
 }

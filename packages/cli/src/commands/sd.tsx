@@ -35,7 +35,7 @@ import { theme } from '../ui/theme.js'
 
 type Clock = SdTicket['sla']['resolution']
 
-function slaText(clock: Clock): string {
+export function slaText(clock: Clock): string {
   const state = label(SLA_STATE_LABELS, clock.state)
   if (
     clock.remainingMinutes === null ||
@@ -47,7 +47,7 @@ function slaText(clock: Clock): string {
   return `${state} (${formatMinutes(clock.remainingMinutes)})`
 }
 
-function slaColor(clock: Clock): string | undefined {
+export function slaColor(clock: Clock): string | undefined {
   if (clock.state === 'breached') return theme.danger
   if (clock.state === 'at_risk') return theme.warning
   if (clock.state === 'ok' || clock.state === 'met') return theme.success
