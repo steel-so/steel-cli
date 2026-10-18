@@ -1,0 +1,13 @@
+{
+  "name": "@steel-so/cli",
+  "version": "0.0.0",
+  "description": "Steel no terminal",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
