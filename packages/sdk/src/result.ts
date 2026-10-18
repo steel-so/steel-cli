@@ -70,3 +70,23 @@ export function toNetworkError(cause: unknown): SteelError {
   }
   return { status: 0, code: 'NETWORK_ERROR', message }
 }
+type Fetched<T> = {
+  data?: { data: T }
+  error?: unknown
+  response: Response
+}
+
+/** Unwraps an `openapi-fetch` call into a `SteelResult`. */
+export async function settle<T>(
+  call: Promise<Fetched<T>>,
+): Promise<SteelResult<T>> {
+  try {
+    const { data, error, response } = await call
+    if (response.ok && data) {
+      return { ok: true, status: response.status, data: data.data }
+    }
+    return { ok: false, error: errorFromResponse(response, error) }
+  } catch (cause) {
+    return { ok: false, error: toNetworkError(cause) }
+  }
+}
