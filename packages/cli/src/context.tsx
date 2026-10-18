@@ -28,6 +28,13 @@ export interface IO {
   readStdin(): Promise<string>
 }
 
+/** Streams for the full-screen dashboard (Ink reads raw keys from stdin). */
+export interface Terminal {
+  stdin: NodeJS.ReadStream
+  stdout: NodeJS.WriteStream
+  stderr: NodeJS.WriteStream
+}
+
 /** Everything that touches the outside world, injected for tests. */
 export interface Deps {
   io: IO
@@ -51,6 +58,8 @@ export interface Deps {
   confirm?: (question: string) => Promise<boolean>
   /** Raw process streams, for protocols over stdio (`steel mcp`). */
   stdio?: { stdin: Readable; stdout: Writable }
+  /** Set only when stdin and stdout are TTYs: `steel` alone opens the dashboard. */
+  terminal?: Terminal
 }
 
 export interface GlobalOptions {

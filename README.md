@@ -71,6 +71,38 @@ para `~/.config/steel/credentials` com permissão 600. O `steel logout` só
 apaga a cópia local: para invalidar o token, revogue em **Ajustes › Segurança
 › Tokens de API**.
 
+## Painel interativo
+
+`steel` sem comando, num terminal, abre um painel em tela cheia com o perfil,
+o workspace e o usuário no topo e quatro abas:
+
+| Aba | O que mostra | Ações no detalhe |
+| --- | --- | --- |
+| **ServiceDesk** | a sua fila (chamados abertos com você), estourados e em risco primeiro | `c` comenta (Tab alterna público/interno), `m` move de fase |
+| **CRM** | oportunidades por etapa do funil, com quantidade e valor de cada etapa; `p` troca o funil | `m` move de etapa |
+| **Comunicação** | templates aprovados (as conversas aguardando ainda não estão na API v1) | comando para enviar o template |
+| **Webhooks** | eventos do workspace ao vivo, como no `steel listen` (OWNER/ADMIN) | corpo do evento e assinatura |
+
+| Tecla | Faz |
+| --- | --- |
+| `←`/`→`, `Tab` ou `1`–`4` | troca de aba |
+| `↑`/`↓` ou `j`/`k` | move na lista (`PgUp`/`PgDn`, `Home`/`End`) |
+| `Enter` | abre o detalhe |
+| `/` | filtra a lista (Enter aplica, Esc limpa) |
+| `r` | atualiza a aba (no Webhooks, reconecta) |
+| `?` | ajuda com todos os atalhos |
+| `Esc` | volta; na lista, sai |
+| `q` ou `Ctrl+C` | sai |
+
+Toda alteração pede confirmação (`s/N`) antes de ir para o Steel, como nos
+comandos. Cada aba carrega na primeira vez que é aberta: um módulo fora do
+token ou um erro (sem rede, `403`) aparece só na aba, com a dica do que
+fazer; token vencido ou revogado pede `steel login`. O painel se ajusta ao
+tamanho do terminal e respeita `NO_COLOR`/`--no-color` (a linha selecionada
+é marcada com `›`). Use `steel --profile <nome>` para abrir outro perfil.
+
+Fora de um terminal (pipe, CI), `steel` sem comando só mostra a ajuda.
+
 ## Perfis
 
 Cada perfil tem uma URL e o seu próprio login.

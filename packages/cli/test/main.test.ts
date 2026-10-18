@@ -38,8 +38,10 @@ describe('processDeps', () => {
       process.stdin.isTTY = true
       process.stdout.isTTY = true
       expect(processDeps().prompt).toBeDefined()
+      expect(processDeps().terminal?.stdin).toBe(process.stdin)
       process.stdin.isTTY = false
       expect(processDeps().prompt).toBeUndefined()
+      expect(processDeps().terminal).toBeUndefined()
     } finally {
       process.stdin.isTTY = stdin
       process.stdout.isTTY = stdout
