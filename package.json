@@ -17,7 +17,8 @@
     "test:coverage": "vitest run --coverage",
     "sdk:generate": "pnpm --filter @steel-so/sdk generate",
     "compile": "bun scripts/compile.ts",
-    "release:tool": "tsx scripts/release.ts"
+    "release:tool": "tsx scripts/release.ts",
+    "contract:check": "tsx scripts/contract.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
