@@ -4,6 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
 import { describeRemoteError, runBridge } from '../src/lib/mcp-bridge.js'
+import { McpLoginRequiredError } from '../src/lib/mcp-oauth.js'
 import { harness } from './harness.js'
 
 const URL_ = 'https://homologacao.stratustelecom.com.br'
@@ -157,6 +158,16 @@ describe('describeRemoteError', () => {
     ).toBe(code)
   })
 
+  it('asks for a login when there is no usable credential', () => {
+    expect(
+      describeRemoteError(new McpLoginRequiredError('missing'), URL_, 'h'),
+    ).toEqual({
+      code: 'MCP_LOGIN_REQUIRED',
+      message: 'Não há login do MCP do Steel neste perfil.',
+      hint: 'h',
+    })
+  })
+
   it('treats anything else as a network error', () => {
     expect(
       describeRemoteError(new StreamableHTTPError(undefined, 'x'), URL_),
@@ -179,11 +190,11 @@ function stdio() {
 }
 
 describe('steel mcp', () => {
-  it('needs a token', async () => {
+  it('needs a token or a login', async () => {
     const h = harness()
     h.deps.stdio = stdio()
-    expect(await h.run('mcp')).toBe(3)
-    expect(h.errJson().error.code).toBe('MCP_TOKEN_MISSING')
+    expect(await h.run('mcp', '--no-login')).toBe(3)
+    expect(h.errJson().error.code).toBe('MCP_LOGIN_REQUIRED')
   })
 
   it('needs stdio', async () => {
