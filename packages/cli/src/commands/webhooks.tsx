@@ -2,6 +2,7 @@ import type {
   WebhookDelivery,
   WebhookDeliveryStatus,
   WebhookEndpoint,
+  WebhookSubscription,
 } from '@steel-so/sdk'
 import { Text } from 'ink'
 import type { Context } from '../context.js'
@@ -152,7 +153,10 @@ export async function endpointsCreate(
   options: CreateEndpointOptions,
 ) {
   const all = /(^|[\s,])\*([\s,]|$)/.test(options.events)
-  const events = all ? ['*'] : parseEventList(options.events)
+  // The server validates the names against its catalog (422 otherwise).
+  const events = (
+    all ? ['*'] : parseEventList(options.events)
+  ) as WebhookSubscription[]
   if (events.length === 0) {
     throw usageError(
       'Informe ao menos um evento em --events.',

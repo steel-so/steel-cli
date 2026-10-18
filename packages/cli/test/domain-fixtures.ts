@@ -159,12 +159,22 @@ export function lead(overrides: Record<string, unknown> = {}) {
   }
 }
 
+const STAMP = '2099-01-01T00:00:00.000Z'
+const audit = {
+  workspaceId: 'ws_1',
+  createdById: 'u_Ana',
+  updatedById: null,
+  createdAt: STAMP,
+  updatedAt: STAMP,
+}
+
 export const pipelineList: CrmPipeline[] = [
   {
     id: 'pl_sales',
     name: 'Vendas',
     position: 0,
     isDefault: true,
+    ...audit,
     stages: [
       {
         id: 'st_won',
@@ -174,6 +184,8 @@ export const pipelineList: CrmPipeline[] = [
         probability: 100,
         category: 'WON',
         color: null,
+        createdAt: STAMP,
+        updatedAt: STAMP,
       },
       {
         id: 'st_prop',
@@ -183,6 +195,8 @@ export const pipelineList: CrmPipeline[] = [
         probability: 60,
         category: 'OPEN',
         color: null,
+        createdAt: STAMP,
+        updatedAt: STAMP,
       },
     ],
   },
@@ -191,6 +205,7 @@ export const pipelineList: CrmPipeline[] = [
     name: 'Renovação',
     position: 1,
     isDefault: false,
+    ...audit,
     stages: [
       {
         id: 'st_renew_prop',
@@ -200,10 +215,19 @@ export const pipelineList: CrmPipeline[] = [
         probability: 50,
         category: 'OPEN',
         color: null,
+        createdAt: STAMP,
+        updatedAt: STAMP,
       },
     ],
   },
-  { id: 'pl_empty', name: 'Vazio', position: 2, isDefault: false, stages: [] },
+  {
+    id: 'pl_empty',
+    name: 'Vazio',
+    position: 2,
+    isDefault: false,
+    ...audit,
+    stages: [],
+  },
 ]
 
 export function opportunity(overrides: Record<string, unknown> = {}) {

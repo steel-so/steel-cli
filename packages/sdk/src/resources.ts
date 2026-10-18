@@ -22,12 +22,12 @@ type Query<Op extends keyof operations> = NonNullable<
   operations[Op]['parameters']['query']
 >
 
-export type SdTicketListQuery = Query<'listSdTickets'>
-export type SdCatalogQuery = Query<'listSdCatalog'>
-export type CrmLeadListQuery = Query<'listCrmLeads'>
-export type CrmOpportunityListQuery = Query<'listCrmOpportunities'>
-export type CrmPipelineListQuery = Query<'listCrmPipelines'>
-export type WhatsAppTemplateListQuery = Query<'listWhatsAppTemplates'>
+export type SdTicketListQuery = Query<'listTickets'>
+export type SdCatalogQuery = Query<'listCatalog'>
+export type CrmLeadListQuery = Query<'listLeads'>
+export type CrmOpportunityListQuery = Query<'listOpportunities'>
+export type CrmPipelineListQuery = Query<'listPipelines'>
+export type WhatsAppTemplateListQuery = Query<'listTemplates'>
 
 export interface SdTicketComment {
   body: string
