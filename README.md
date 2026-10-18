@@ -58,7 +58,7 @@ steel version --json
 steel login            # abre o navegador; confirme o código e escolha o workspace
 steel whoami           # usuário, workspace, escopos, módulos e validade do token
 steel api GET /me      # qualquer rota da API v1
-steel logout           # apaga o token salvo neste computador
+steel logout           # revoga o token no Steel e apaga a cópia local
 ```
 
 O `steel login` usa o fluxo de dispositivo: o terminal mostra um código, você
@@ -67,9 +67,10 @@ confirma em `/device` no Steel, escolhe workspace, módulos e escopo
 
 O token fica no **chaveiro do sistema** (Keychain no macOS, Gerenciador de
 Credenciais no Windows, Secret Service no Linux). Sem chaveiro disponível, vai
-para `~/.config/steel/credentials` com permissão 600. O `steel logout` só
-apaga a cópia local: para invalidar o token, revogue em **Ajustes › Segurança
-› Tokens de API**.
+para `~/.config/steel/credentials` com permissão 600. O `steel logout`
+revoga o token salvo no Steel e apaga a cópia local; se o Steel não responder,
+ele apaga a cópia mesmo assim e avisa — aí revogue em **Ajustes › Segurança ›
+Tokens de API**. Um token em `STEEL_TOKEN` não é revogado.
 
 ## Painel interativo
 

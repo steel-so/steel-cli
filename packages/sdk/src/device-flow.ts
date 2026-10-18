@@ -61,7 +61,7 @@ function classify(error: SteelError) {
  * the code on `/device`, the code expires, or `signal` aborts.
  */
 export async function waitForDeviceToken(
-  client: Pick<SteelClient, 'auth'>,
+  client: { auth: Pick<SteelClient['auth'], 'pollDeviceToken'> },
   start: DeviceAuthorization,
   options: WaitForDeviceTokenOptions = {},
 ): Promise<DeviceFlowOutcome> {

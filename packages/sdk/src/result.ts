@@ -70,8 +70,13 @@ export function toNetworkError(cause: unknown): SteelError {
   }
   return { status: 0, code: 'NETWORK_ERROR', message }
 }
+/**
+ * The v1 document types each 2xx body as `SuccessEnvelope & { data?: T }`
+ * (the `allOf` member does not repeat `required: [data]`), so `data` is
+ * optional at the type level even though the server always sends it.
+ */
 type Fetched<T> = {
-  data?: { data: T }
+  data?: { data?: T }
   error?: unknown
   response: Response
 }
@@ -83,8 +88,21 @@ export async function settle<T>(
   try {
     const { data, error, response } = await call
     if (response.ok && data) {
-      return { ok: true, status: response.status, data: data.data }
+      return { ok: true, status: response.status, data: data.data as T }
     }
+    return { ok: false, error: errorFromResponse(response, error) }
+  } catch (cause) {
+    return { ok: false, error: toNetworkError(cause) }
+  }
+}
+
+/** Like {@link settle} for `204 No Content` operations. */
+export async function settleEmpty(
+  call: Promise<{ error?: unknown; response: Response }>,
+): Promise<SteelResult<null>> {
+  try {
+    const { error, response } = await call
+    if (response.ok) return { ok: true, status: response.status, data: null }
     return { ok: false, error: errorFromResponse(response, error) }
   } catch (cause) {
     return { ok: false, error: toNetworkError(cause) }

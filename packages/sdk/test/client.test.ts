@@ -121,6 +121,45 @@ describe('createSteelClient', () => {
     expect(await calls[1]?.json()).toEqual({ deviceCode: 'dev-123' })
   })
 
+  describe('auth.revokeToken', () => {
+    it('sends DELETE /api/v1/auth/token with the token and maps 204', async () => {
+      const { fetch, calls } = mockFetch(new Response(null, { status: 204 }))
+      const client = createSteelClient({
+        baseUrl: 'https://steel.test',
+        token: 'stl_pat_x',
+        fetch,
+      })
+
+      const result = await client.auth.revokeToken()
+
+      expect(result).toEqual({ ok: true, status: 204, data: null })
+      expect(calls[0]?.method).toBe('DELETE')
+      expect(new URL(calls[0]?.url ?? '').pathname).toBe('/api/v1/auth/token')
+      expect(calls[0]?.headers.get('authorization')).toBe('Bearer stl_pat_x')
+    })
+
+    it('returns the envelope error and network failures', async () => {
+      const { fetch } = mockFetch(
+        errorEnvelope(401, 'UNAUTHORIZED'),
+        new TypeError('fetch failed'),
+      )
+      const client = createSteelClient({
+        baseUrl: 'https://steel.test',
+        token: 'stl_pat_x',
+        fetch,
+      })
+
+      expect(await client.auth.revokeToken()).toEqual({
+        ok: false,
+        error: { status: 401, code: 'UNAUTHORIZED' },
+      })
+      expect(await client.auth.revokeToken()).toEqual({
+        ok: false,
+        error: { status: 0, code: 'NETWORK_ERROR', message: 'fetch failed' },
+      })
+    })
+  })
+
   describe('request', () => {
     it('sends query, JSON body and the token, and parses JSON', async () => {
       const { fetch, calls } = mockFetch(

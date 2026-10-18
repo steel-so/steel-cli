@@ -5,10 +5,11 @@
  *   pnpm generate <path-or-url>        # explicit source
  *   pnpm generate:check                # CI: committed output is up to date
  *
- * Source precedence: CLI argument, `STEEL_OPENAPI_SOURCE`, the sibling Steel
- * checkout (`../steel/public/openapi.v1.json` next to this repo), then the
- * contract-shaped fixture in `openapi/fixture.v1.json`. The document used is
- * snapshotted to `openapi/openapi.v1.json` so `--check` is reproducible.
+ * Source precedence: CLI argument, `STEEL_OPENAPI_SOURCE`, then the sibling
+ * Steel checkout (`../steel/public/openapi.v1.json` next to this repo). With
+ * none of them the script fails: it never falls back to a stale document.
+ * The document used is snapshotted to `openapi/openapi.v1.json` so `--check`
+ * is reproducible.
  */
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
@@ -20,7 +21,6 @@ const here = dirname(fileURLToPath(import.meta.url))
 const pkgRoot = resolve(here, '..')
 const repoRoot = resolve(pkgRoot, '../..')
 const snapshotPath = resolve(pkgRoot, 'openapi/openapi.v1.json')
-const fixturePath = resolve(pkgRoot, 'openapi/fixture.v1.json')
 const outputPath = resolve(pkgRoot, 'src/generated/schema.ts')
 const siblingSteel = resolve(repoRoot, '../steel/public/openapi.v1.json')
 
@@ -40,7 +40,15 @@ function pickSource(arg: string | undefined): string {
   const fromEnv = process.env.STEEL_OPENAPI_SOURCE
   if (fromEnv) return fromEnv
   if (existsSync(siblingSteel)) return siblingSteel
-  return fixturePath
+  throw new Error(
+    [
+      'No Steel API v1 document found. Pass one explicitly:',
+      '  pnpm --filter @steel-so/sdk generate <path-or-url>',
+      'or set STEEL_OPENAPI_SOURCE, or clone the Steel repo next to this one',
+      `(${siblingSteel}).`,
+      'Public copy: https://homologacao.stratustelecom.com.br/dev/api/v1/openapi.json',
+    ].join('\n'),
+  )
 }
 
 async function render(documentText: string): Promise<string> {
@@ -91,6 +99,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(error)
+  console.error(error instanceof Error ? error.message : error)
   process.exit(1)
 })

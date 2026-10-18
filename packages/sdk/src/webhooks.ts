@@ -221,7 +221,9 @@ export function createWebhooksApi(deps: WebhooksDeps): WebhooksApi {
             yield {
               type: 'webhook',
               frame,
-              event: isRecord(event) ? (event as WebhookEvent) : null,
+              event: isRecord(event)
+                ? (event as unknown as WebhookEvent)
+                : null,
             }
           }
         }

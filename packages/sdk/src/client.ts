@@ -14,7 +14,12 @@ import {
   type WhatsAppResource,
   whatsappResource,
 } from './resources.js'
-import { type SteelResult, settle, toNetworkError } from './result.js'
+import {
+  type SteelResult,
+  settle,
+  settleEmpty,
+  toNetworkError,
+} from './result.js'
 import { createWebhooksApi, type WebhooksApi } from './webhooks.js'
 
 export interface SteelClientOptions {
@@ -57,6 +62,12 @@ export interface SteelClient {
       body?: DeviceAuthorizationRequest,
     ): Promise<SteelResult<DeviceAuthorization>>
     pollDeviceToken(deviceCode: string): Promise<SteelResult<DeviceToken>>
+    /**
+     * Revokes the token this client was created with
+     * (`DELETE /api/v1/auth/token`, `204`). A token that is already invalid
+     * comes back as `ok: false` with `UNAUTHORIZED`.
+     */
+    revokeToken(): Promise<SteelResult<null>>
   }
   /**
    * Untyped call for routes the SDK does not model yet (`steel api`). Only
@@ -126,6 +137,7 @@ export function createSteelClient(options: SteelClientOptions): SteelClient {
             body: { deviceCode },
           }),
         ),
+      revokeToken: () => settleEmpty(api.DELETE('/api/v1/auth/token')),
     },
     webhooks: createWebhooksApi({
       api,
