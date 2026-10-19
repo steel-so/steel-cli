@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { describe, expect, it } from 'vitest'
 import type { Terminal } from '../src/context.js'
-import { page, ticket } from './domain-fixtures.js'
+import { incidentPhases, page, ticket } from './domain-fixtures.js'
 import { FakeStream, fail, harness, me, ok } from './harness.js'
 import { tick, waitFor } from './tui-fixtures.js'
 
@@ -48,7 +48,12 @@ const meAll = {
 describe('steel with no arguments', () => {
   it('opens the dashboard on a terminal and quits with q', async () => {
     const { h, stdin, screen } = await withTerminal()
-    h.reply(ok(meAll), ok(page([ticket()])))
+    // The queue and the phase list load in parallel: answer by path.
+    const queueOrPhases = (request: Request) =>
+      new URL(request.url).pathname.endsWith('/phases')
+        ? ok(page(incidentPhases))
+        : ok(page([ticket()]))
+    h.reply(ok(meAll), queueOrPhases, queueOrPhases)
     const exit = h.run()
     await waitFor(() => expect(screen.output).toContain('INC-42'))
     expect(screen.output).toContain('Ana Souza')
@@ -58,8 +63,11 @@ describe('steel with no arguments', () => {
     await tick()
     stdin.write('q')
     expect(await exit).toBe(0)
-    expect(h.requests.map((request) => new URL(request.url).pathname)).toEqual([
+    expect(
+      h.requests.map((request) => new URL(request.url).pathname).sort(),
+    ).toEqual([
       '/api/v1/me',
+      '/api/v1/servicedesk/phases',
       '/api/v1/servicedesk/tickets',
     ])
     expect(h.out()).toBe('')

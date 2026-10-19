@@ -6,10 +6,11 @@ import { RowList } from '../src/tui/widgets.js'
 import { formatMoney } from '../src/ui/labels.js'
 import {
   clock,
+  conversation,
+  incidentPhases,
   opportunity,
   page,
   pipelineList,
-  template,
   ticket,
 } from './domain-fixtures.js'
 import {
@@ -386,6 +387,67 @@ describe('ServiceDesk tab', () => {
     await waitFor(() => expect(frame()).toContain('m move de fase'))
   })
 
+  it('offers only the workflow next phases when the server lists them', async () => {
+    const client = mockClient()
+    withQueue(client)
+    client.servicedesk.phases.mockResolvedValue(
+      okResult(page(incidentPhases)) as never,
+    )
+    client.servicedesk.tickets.move.mockResolvedValue(
+      okResult(
+        ticket({
+          phase: phase('ph_done', 'Resolvido', 4),
+          completionPercent: 100,
+        }),
+      ) as never,
+    )
+    const { frame, press } = open(client)
+    await waitFor(() => expect(frame()).toContain('INC-7'))
+    // INC-7 is first (breached) and sits in "Em atendimento".
+    await press(KEY.enter, 'm')
+    await waitFor(() => expect(frame()).toContain('Mover INC-7 para'))
+    expect(frame()).toContain('Aguardando cliente')
+    expect(frame()).toContain('Resolvido')
+    expect(frame()).not.toContain('Outra fase')
+    await press(KEY.down, KEY.enter)
+    await waitFor(() =>
+      expect(frame()).toContain('Mover o chamado INC-7 para a fase Resolvido?'),
+    )
+    await press('s')
+    await waitFor(() =>
+      expect(frame()).toContain('INC-42 agora está em Resolvido (100%).'),
+    )
+    expect(client.servicedesk.tickets.move).toHaveBeenCalledWith('tk_7', {
+      phaseId: 'ph_done',
+    })
+  })
+
+  it('says when the workflow has no way out of the current phase', async () => {
+    const client = mockClient()
+    client.servicedesk.tickets.list.mockResolvedValue(
+      okResult(
+        page([
+          ticket({
+            phaseId: 'ph_done',
+            phase: phase('ph_done', 'Resolvido', 4),
+          }),
+        ]),
+      ) as never,
+    )
+    client.servicedesk.phases.mockResolvedValue(
+      okResult(page(incidentPhases)) as never,
+    )
+    const { frame, press } = open(client)
+    await waitFor(() => expect(frame()).toContain('INC-42'))
+    await press(KEY.enter, 'm')
+    await waitFor(() =>
+      expect(frame()).toContain(
+        'A fase Resolvido não tem saída no fluxo deste tipo.',
+      ),
+    )
+    expect(client.servicedesk.tickets.move).not.toHaveBeenCalled()
+  })
+
   it('asks for the phase id when the queue shows no other phase', async () => {
     const client = mockClient()
     client.servicedesk.tickets.list.mockResolvedValue(
@@ -516,40 +578,80 @@ describe('CRM tab', () => {
 })
 
 describe('Comunicação tab', () => {
-  it('lists approved templates, says conversations are not in the API yet', async () => {
+  it('lists the conversations waiting for an agent, oldest first', async () => {
     const client = mockClient()
-    client.whatsapp.templates.mockResolvedValue(
+    client.whatsapp.conversations.waiting.mockResolvedValue(
       okResult(
         page([
-          template(),
-          template({ id: 'tpl_2', name: 'cobranca', quality: 'RED' }),
+          conversation(),
+          conversation({
+            id: 'cv_2',
+            contactName: null,
+            contactWaId: '5511988887777',
+            team: { id: 'team_1', name: 'Financeiro' },
+            teamId: 'team_1',
+            aiActive: true,
+            lastMessagePreview: 'Quero a segunda via do boleto',
+          }),
         ]),
       ) as never,
     )
     const { frame, press, type } = open(client, 2)
-    await waitFor(() => expect(frame()).toContain('boas_vindas'))
-    expect(frame()).toContain('Templates aprovados')
-    expect(frame()).toContain('ainda não estão na API v1')
-    expect(frame()).toContain('Baixa')
+    await waitFor(() => expect(frame()).toContain('Dani Lima'))
+    const out = frame()
+    expect(out).toContain('Aguardando atendimento 2 conversas · 1 com a IA')
+    expect(out).toContain('+5511988887777')
+    expect(out).toContain('Financeiro')
+    expect(out).toContain('Com a IA')
+    expect(out).toContain('10/01/2099, 09:30')
+    expect(out).not.toContain('Templates aprovados')
+
     await press(KEY.enter)
-    await waitFor(() => expect(frame()).toContain('Olá {{1}}, seu código é'))
-    expect(frame()).toContain('steel zap send --template boas_vindas')
+    await waitFor(() =>
+      expect(frame()).toContain('Oi, preciso de ajuda com a fatura'),
+    )
+    expect(frame()).toContain('+5511999990001')
+    expect(frame()).toContain('steel zap send --conversation cv_1')
     await press(KEY.escape)
-    await waitFor(() => expect(frame()).toContain('cobranca'))
+    await waitFor(() => expect(frame()).toContain('Financeiro'))
+
+    await press(KEY.down, KEY.enter)
+    await waitFor(() => expect(frame()).toContain('A IA está atendendo'))
+    await press(KEY.escape)
+
     await press('/')
-    await type('cobr')
-    await waitFor(() => expect(frame()).not.toContain('boas_vindas'))
+    await type('boleto')
+    await waitFor(() => expect(frame()).not.toContain('Dani Lima'))
+    expect(frame()).toContain('+5511988887777')
   })
 
-  it('shows the template detail without text', async () => {
+  it('shows an empty queue and a conversation without preview', async () => {
     const client = mockClient()
-    client.whatsapp.templates.mockResolvedValue(
-      okResult(page([template({ components: [] })])) as never,
+    const { frame } = open(client, 2)
+    await waitFor(() =>
+      expect(frame()).toContain(
+        'Nenhuma conversa aguardando atendimento. Fila limpa!',
+      ),
     )
-    const { frame, press } = open(client, 2)
-    await waitFor(() => expect(frame()).toContain('boas_vindas'))
-    await press(KEY.enter)
-    await waitFor(() => expect(frame()).toContain('(sem texto)'))
+
+    const other = mockClient()
+    other.whatsapp.conversations.waiting.mockResolvedValue(
+      okResult(
+        page([
+          conversation({
+            contactName: '',
+            lastMessagePreview: null,
+            lastMessageAt: null,
+            unreadCount: 1,
+          }),
+        ]),
+      ) as never,
+    )
+    const second = open(other, 2)
+    await waitFor(() => expect(second.frame()).toContain('1 conversa'))
+    await second.press(KEY.enter)
+    await waitFor(() => expect(second.frame()).toContain('(sem prévia)'))
+    expect(second.frame()).toContain('10/01/2099, 09:00')
   })
 })
 

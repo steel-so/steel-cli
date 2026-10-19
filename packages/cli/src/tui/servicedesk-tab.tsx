@@ -7,7 +7,7 @@ import { formatDate } from '../lib/format.js'
 import { KeyValue } from '../ui/components.js'
 import { label, TICKET_TYPE_LABELS } from '../ui/labels.js'
 import { theme } from '../ui/theme.js'
-import { check, knownPhases, loadQueue, type QueueData } from './data.js'
+import { check, loadQueue, movablePhases, type QueueData } from './data.js'
 import { capturesKeys, FlowView, useFlow } from './flow.js'
 import {
   type DetailProps,
@@ -106,8 +106,16 @@ function TicketDetail({
     })
 
   const move = () => {
-    const phases = knownPhases(data.tickets, ticket.phaseId)
-    if (phases.length === 0) return askPhaseId()
+    const { phases, exact } = movablePhases(data, ticket)
+    if (phases.length === 0) {
+      if (!exact) return askPhaseId()
+      return setStep({
+        kind: 'result',
+        tone: 'error',
+        text: `A fase ${ticket.phase.name} não tem saída no fluxo deste tipo.`,
+        hint: 'Veja o fluxo com `steel sd phases`.',
+      })
+    }
     setStep({
       kind: 'select',
       label: `Mover ${ticket.code} para`,
@@ -117,7 +125,9 @@ function TicketDetail({
           label: phase.name,
           hint: `${phase.completionPercent}%`,
         })),
-        { value: OTHER_PHASE, label: 'Outra fase (pelo id)…' },
+        ...(exact
+          ? []
+          : [{ value: OTHER_PHASE, label: 'Outra fase (pelo id)…' }]),
       ],
       onSubmit: (value) => {
         if (value === OTHER_PHASE) return askPhaseId()
