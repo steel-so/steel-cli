@@ -91,9 +91,9 @@ o workspace e o usuário no topo e quatro abas:
 
 | Aba | O que mostra | Ações no detalhe |
 | --- | --- | --- |
-| **ServiceDesk** | a sua fila (chamados abertos com você), estourados e em risco primeiro | `c` comenta (Tab alterna público/interno), `m` move de fase |
+| **ServiceDesk** | a sua fila (chamados abertos com você), estourados e em risco primeiro | `c` comenta (Tab alterna público/interno), `m` move de fase (só as fases para onde o fluxo deixa ir) |
 | **CRM** | oportunidades por etapa do funil, com quantidade e valor de cada etapa; `p` troca o funil | `m` move de etapa |
-| **Comunicação** | templates aprovados (as conversas aguardando ainda não estão na API v1) | comando para enviar o template |
+| **Comunicação** | conversas aguardando atendimento (sem responsável), as mais antigas primeiro, com a fila (equipe) e as que estão com a IA | contato, última mensagem e o comando para responder |
 | **Webhooks** | eventos do workspace ao vivo, como no `steel listen` (OWNER/ADMIN) | corpo do evento e assinatura |
 
 | Tecla | Faz |
@@ -150,7 +150,8 @@ steel sd ticket list --assignee me --status aguardando   # só os abertos, sem -
 steel sd ticket view 42                                   # id ou número
 steel sd ticket create --type incidente --title "VPN fora do ar"
 steel sd ticket comment 42 -m "Já estamos olhando" --internal
-steel sd ticket move 42 --phase <id-da-fase> --solution @solucao.md
+steel sd ticket move 42 --phase Resolvido --solution @solucao.md   # nome ou id da fase
+steel sd phases --type incidente                          # fases e para onde cada uma vai
 steel sd catalog --type requisicao
 
 steel crm lead list --stage qualificado
@@ -160,6 +161,8 @@ steel crm opportunity list --pipeline <id>
 steel crm opportunity move <id> --stage Proposta --pipeline Vendas
 steel crm pipelines
 
+steel zap waiting                                         # fila: sem responsável, mais antigas primeiro
+steel zap waiting --team <id> --connection <id>
 steel zap templates                                       # aprovados; --status todos
 steel zap send --template boas_vindas --to 5511999990000 --var 1=Ana
 steel zap broadcast status <id>
@@ -176,6 +179,17 @@ steel zap broadcast status <id>
   (`incidente`, `aguardando`, `em-contato`) ou o valor da API (`INCIDENT`).
 - Textos longos (`--description`, `-m`, `--solution`) aceitam `@arquivo` ou
   `@-` (stdin).
+- `steel sd ticket move` aceita o **nome** da fase (acentos e maiúsculas
+  não importam) ou o id, dentro do fluxo do tipo do chamado, e recusa antes
+  de enviar uma fase para onde o fluxo não deixa ir. Sem `--phase`, no
+  terminal, mostra só as fases permitidas e, se a fase exige solução, pede
+  a solução. `steel sd phases` mostra o fluxo: coluna **Vai para** com as
+  fases seguintes (`qualquer` = fluxo livre do tipo; `—` = sem saída).
+- `steel zap waiting` segue as Equipes do dono do token: a fila geral e as
+  filas das equipes dele (o dono e administradores fora de equipes veem
+  todas). Responda com `steel zap send --conversation <id> --template <nome>`;
+  a coluna **IA** marca as conversas que a IA está atendendo (envio manual
+  bloqueado até tirá-la no Steel).
 - `steel crm lead import` sai com código 1 quando alguma linha volta com
   erro; a resposta lista cada linha.
 - `steel zap send`: variáveis do corpo como `--var 1=Ana` (ou
@@ -224,6 +238,7 @@ steel trigger crm.deal.won --endpoint <id>        # e também a este endpoint
 steel webhooks events                             # catálogo de eventos
 steel webhooks endpoints list
 steel webhooks endpoints create --url https://erp.exemplo.com/steel --events "*"
+steel webhooks endpoints create --url https://bot.exemplo.com/fila --events communication.conversation.waiting
 steel webhooks endpoints test <id>                # envia um steel.ping e mostra a resposta
 steel webhooks endpoints delete <id>              # pede confirmação; --yes em scripts
 steel webhooks deliveries list --endpoint <id> --status FAILED
@@ -231,6 +246,9 @@ steel webhooks deliveries retry <id>              # reenvia (mesmo corpo e mesmo
 ```
 
 O segredo de um endpoint novo só aparece na criação: guarde-o na hora.
+`communication.conversation.waiting` chega quando uma conversa entra na fila
+de atendimento (nova, reaberta sem responsável ou devolvida para a fila) —
+a mesma fila do `steel zap waiting`.
 
 ## Scripts e CI
 
@@ -255,7 +273,7 @@ estável no stdout, sem cores. Erros saem no stderr como
 | 0 | sucesso |
 | 1 | erro (rede, tempo esgotado, limite de requisições, servidor, qualquer outra resposta HTTP de erro) |
 | 2 | uso incorreto (comando, opção ou argumento) |
-| 3 | autenticação ou permissão: sem login, sem login do MCP, ou **qualquer** resposta 401/403 (token inválido, vencido ou revogado, sem o escopo `api:write`, módulo fora do token, sem o papel necessário) — inclusive no `steel api` |
+| 3 | autenticação ou permissão: sem login, sem login do MCP, ou **qualquer** resposta 401/403 (token inválido, vencido ou revogado, sem o escopo `api:write`, módulo fora do token, sem o papel necessário) — inclusive no `steel api`. Em `API_TOKEN_SCOPE_REQUIRED` (inclusive nas rotas de webhooks), a dica diz qual escopo falta (`details.requiredScope`) |
 | 130 | cancelado (Ctrl+C) |
 
 ## Autocomplete
@@ -364,12 +382,15 @@ timestamps a mais de 5 minutos do relógio local (ajuste com
 `{ toleranceSeconds }`). Nunca lança exceção.
 
 Os módulos têm atalhos tipados: `steel.servicedesk.tickets.list()`,
-`steel.crm.leads.import(csv)`, `steel.whatsapp.sendTemplate(...)` e o
-`collectAll(...)` para percorrer todas as páginas de uma lista.
+`steel.servicedesk.phases({ ticketType })`, `steel.crm.leads.import(csv)`,
+`steel.whatsapp.conversations.waiting()`, `steel.whatsapp.sendTemplate(...)`
+e o `collectAll(...)` para percorrer todas as páginas de uma lista.
 
 O SDK também expõe `steel.webhooks` (catálogo, endpoints, entregas,
 `trigger`) e `steel.webhooks.listen()`, o stream SSE usado pelo
-`steel listen`.
+`steel listen`. `isConversationWaitingEvent(event)` tipa o `data` de
+`communication.conversation.waiting` (conversa, contato e o motivo:
+`new`, `reopened` ou `returned_to_queue`).
 
 ## Licença
 
