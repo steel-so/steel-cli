@@ -879,6 +879,97 @@
         ]
       }
     },
+    "/api/v1/servicedesk/phases": {
+      "get": {
+        "tags": [
+          "ServiceDesk"
+        ],
+        "summary": "Listar fases",
+        "operationId": "listPhases",
+        "description": "Fases ativas de cada tipo de chamado (incidente, requisição, mudança, problema), na ordem do quadro, com `nextPhaseIds`: para onde um chamado em cada fase pode ir (`null` = fluxo livre do tipo). Use os ids em `POST /servicedesk/tickets/{ticketId}/phase`. Qualquer membro do ServiceDesk lê; mover continua só para agentes. Paginação por cursor: `limit` (padrão 25, máximo 100) e `cursor` (o `nextCursor` da página anterior). Escopo `api:read` (todo token tem). Roda com as permissões do dono do token.\n\nRate limit por token e por usuário; ao estourar responde `429 RATE_LIMITED` com o header `Retry-After`.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Itens por página (1–100).",
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Valor de `nextCursor` da página anterior. Omitido = primeira página.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "ticketType",
+            "in": "query",
+            "required": false,
+            "description": "Só as fases deste tipo de chamado (INCIDENT, SERVICE_REQUEST, CHANGE, PROBLEM). Omitido = todos os tipos.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INCIDENT",
+                "SERVICE_REQUEST",
+                "CHANGE",
+                "PROBLEM"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de fases.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/V1SdPhasePage"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401_UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_FORBIDDEN_MODULE_DISABLED_WORKSPACE_SUSPENDED_API_TOKEN_MODULE_NOT_ALLOWED_3"
+          },
+          "422": {
+            "$ref": "#/components/responses/422_VALIDATION_ERROR"
+          },
+          "429": {
+            "$ref": "#/components/responses/429_RATE_LIMITED"
+          }
+        },
+        "security": [
+          {
+            "personalToken": []
+          }
+        ]
+      }
+    },
     "/api/v1/servicedesk/tickets": {
       "get": {
         "tags": [
@@ -1837,7 +1928,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_2"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND"
@@ -1902,7 +1993,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND_WEBHOOK_DELIVERY_NOT_FOUND"
@@ -1975,7 +2066,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_2"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
           },
           "429": {
             "$ref": "#/components/responses/429_RATE_LIMITED"
@@ -2013,7 +2104,7 @@
                   },
                   "events": {
                     "minItems": 1,
-                    "maxItems": 19,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -2036,6 +2127,7 @@
                         "crm.deal.won",
                         "crm.deal.lost",
                         "communication.message.received",
+                        "communication.conversation.waiting",
                         "agents.approval.pending"
                       ]
                     }
@@ -2093,7 +2185,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"
           },
           "409": {
             "$ref": "#/components/responses/409_WEBHOOK_ENDPOINT_LIMIT_REACHED"
@@ -2157,7 +2249,7 @@
                   },
                   "events": {
                     "minItems": 1,
-                    "maxItems": 19,
+                    "maxItems": 20,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -2180,6 +2272,7 @@
                         "crm.deal.won",
                         "crm.deal.lost",
                         "communication.message.received",
+                        "communication.conversation.waiting",
                         "agents.approval.pending"
                       ]
                     }
@@ -2219,7 +2312,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND"
@@ -2290,7 +2383,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND"
@@ -2352,7 +2445,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND"
@@ -2449,7 +2542,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_2"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED"
           },
           "422": {
             "$ref": "#/components/responses/422_VALIDATION_ERROR_3"
@@ -2549,7 +2642,7 @@
             "$ref": "#/components/responses/401_UNAUTHORIZED"
           },
           "403": {
-            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_3"
+            "$ref": "#/components/responses/403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED_2"
           },
           "404": {
             "$ref": "#/components/responses/404_WEBHOOK_ENDPOINT_NOT_FOUND"
@@ -2618,6 +2711,104 @@
           },
           "404": {
             "$ref": "#/components/responses/404_WHATSAPP_BROADCAST_NOT_FOUND"
+          },
+          "429": {
+            "$ref": "#/components/responses/429_RATE_LIMITED"
+          }
+        },
+        "security": [
+          {
+            "personalToken": []
+          }
+        ]
+      }
+    },
+    "/api/v1/whatsapp/conversations/waiting": {
+      "get": {
+        "tags": [
+          "Comunicação"
+        ],
+        "summary": "Conversas aguardando atendimento",
+        "operationId": "listWaitingConversations",
+        "description": "A fila da caixa de entrada: conversas abertas (`NEW` ou `IN_PROGRESS`), não arquivadas e **sem responsável**, da mais antiga para a mais nova (pela última mensagem). Segue a visibilidade das Equipes do dono do token: a fila geral e as filas das equipes dele (o dono e administradores fora de equipes veem todas). Conversas que a IA está atendendo entram, com `aiActive: true`. Quando uma conversa entra nesta fila, o webhook `communication.conversation.waiting` é enviado. Paginação por cursor: `limit` (padrão 25, máximo 100) e `cursor` (o `nextCursor` da página anterior). Escopo `api:read` (todo token tem). Roda com as permissões do dono do token.\n\nRate limit por token e por usuário; ao estourar responde `429 RATE_LIMITED` com o header `Retry-After`.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Itens por página (1–100).",
+            "schema": {
+              "default": 25,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Valor de `nextCursor` da página anterior. Omitido = primeira página.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "connectionId",
+            "in": "query",
+            "required": false,
+            "description": "Só as conversas desta conexão.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "teamId",
+            "in": "query",
+            "required": false,
+            "description": "Só a fila desta equipe.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de conversas aguardando.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/SuccessEnvelope"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "$ref": "#/components/schemas/V1WhatsAppConversationPage"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/401_UNAUTHORIZED"
+          },
+          "403": {
+            "$ref": "#/components/responses/403_FORBIDDEN_MODULE_DISABLED_WORKSPACE_SUSPENDED_API_TOKEN_MODULE_NOT_ALLOWED_2"
+          },
+          "422": {
+            "$ref": "#/components/responses/422_VALIDATION_ERROR"
           },
           "429": {
             "$ref": "#/components/responses/429_RATE_LIMITED"
@@ -3157,7 +3348,10 @@
                   "statusCode": 403,
                   "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
                   "error": {
-                    "code": "API_TOKEN_SCOPE_REQUIRED"
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
                   }
                 }
               },
@@ -3235,7 +3429,10 @@
                   "statusCode": 403,
                   "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
                   "error": {
-                    "code": "API_TOKEN_SCOPE_REQUIRED"
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
                   }
                 }
               },
@@ -3380,7 +3577,10 @@
                   "statusCode": 403,
                   "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
                   "error": {
-                    "code": "API_TOKEN_SCOPE_REQUIRED"
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
                   }
                 }
               },
@@ -3469,7 +3669,10 @@
                   "statusCode": 403,
                   "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
                   "error": {
-                    "code": "API_TOKEN_SCOPE_REQUIRED"
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
                   }
                 }
               },
@@ -3569,7 +3772,10 @@
                   "statusCode": 403,
                   "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
                   "error": {
-                    "code": "API_TOKEN_SCOPE_REQUIRED"
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
                   }
                 }
               },
@@ -3652,7 +3858,7 @@
             },
             "examples": {
               "FORBIDDEN": {
-                "summary": "FORBIDDEN — Token sem `api:write`, ou o dono não é OWNER/ADMIN",
+                "summary": "FORBIDDEN — O dono do token não é OWNER/ADMIN",
                 "value": {
                   "success": false,
                   "statusCode": 403,
@@ -3677,14 +3883,28 @@
           }
         }
       },
-      "403_FORBIDDEN_WORKSPACE_SUSPENDED_2": {
-        "description": "Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`",
+      "403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED": {
+        "description": "Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `API_TOKEN_SCOPE_REQUIRED`",
         "content": {
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/ErrorEnvelope"
             },
             "examples": {
+              "API_TOKEN_SCOPE_REQUIRED": {
+                "summary": "API_TOKEN_SCOPE_REQUIRED — Token sem o escopo `api:write` (`details.requiredScope`)",
+                "value": {
+                  "success": false,
+                  "statusCode": 403,
+                  "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
+                  "error": {
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
+                  }
+                }
+              },
               "FORBIDDEN": {
                 "summary": "FORBIDDEN — O dono do token não é OWNER/ADMIN",
                 "value": {
@@ -3711,16 +3931,30 @@
           }
         }
       },
-      "403_FORBIDDEN_WORKSPACE_SUSPENDED_3": {
-        "description": "Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`",
+      "403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED_2": {
+        "description": "Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `API_TOKEN_SCOPE_REQUIRED`",
         "content": {
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/ErrorEnvelope"
             },
             "examples": {
+              "API_TOKEN_SCOPE_REQUIRED": {
+                "summary": "API_TOKEN_SCOPE_REQUIRED — Token sem o escopo `api:write` (`details.requiredScope`)",
+                "value": {
+                  "success": false,
+                  "statusCode": 403,
+                  "message": "Este token só permite leitura. Crie um token com o escopo api:write para alterar dados.",
+                  "error": {
+                    "code": "API_TOKEN_SCOPE_REQUIRED",
+                    "details": {
+                      "requiredScope": "api:write"
+                    }
+                  }
+                }
+              },
               "FORBIDDEN": {
-                "summary": "FORBIDDEN — Token sem `api:write`, ou o dono não é OWNER/ADMIN",
+                "summary": "FORBIDDEN — O dono do token não é OWNER/ADMIN",
                 "value": {
                   "success": false,
                   "statusCode": 403,
@@ -4822,6 +5056,133 @@
           "created",
           "skipped",
           "errors"
+        ]
+      },
+      "ApiV1SdPhase": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ckv9x2p0h0000us7d3k1e5abc"
+          },
+          "ticketType": {
+            "type": "string",
+            "enum": [
+              "INCIDENT",
+              "SERVICE_REQUEST",
+              "CHANGE",
+              "PROBLEM"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "Em atendimento"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "IN_PROGRESS",
+              "WAITING",
+              "RESOLVED",
+              "CLOSED",
+              "CANCELED"
+            ]
+          },
+          "completionPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "position": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "isInitial": {
+            "type": "boolean"
+          },
+          "pausesSla": {
+            "type": "boolean"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "requiredFields": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wipLimit": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "nextPhaseIds": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fases ativas do mesmo tipo para onde um chamado nesta fase pode ir. `null` = o tipo não tem transições cadastradas (fluxo livre: qualquer fase ativa do tipo); `[]` = nenhuma saída. Restrições por departamento valem na hora de mover."
+          }
+        },
+        "required": [
+          "id",
+          "ticketType",
+          "name",
+          "description",
+          "color",
+          "category",
+          "completionPercent",
+          "position",
+          "isInitial",
+          "pausesSla",
+          "requiresApproval",
+          "requiredFields",
+          "wipLimit",
+          "active",
+          "createdAt",
+          "updatedAt",
+          "nextPhaseIds"
         ]
       },
       "CrmLead": {
@@ -7384,6 +7745,32 @@
           "nextCursor"
         ]
       },
+      "V1SdPhasePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiV1SdPhase"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Passe em `?cursor=` para a próxima página; `null` = última página."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
       "V1SdTicketPage": {
         "type": "object",
         "properties": {
@@ -7391,6 +7778,32 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SdTicket"
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Passe em `?cursor=` para a próxima página; `null` = última página."
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ]
+      },
+      "V1WhatsAppConversationPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WhatsAppConversation"
             }
           },
           "nextCursor": {
@@ -7714,6 +8127,7 @@
               "crm.deal.won",
               "crm.deal.lost",
               "communication.message.received",
+              "communication.conversation.waiting",
               "agents.approval.pending"
             ]
           },
@@ -8143,6 +8557,211 @@
           }
         ],
         "description": "Até 2 por template/mensagem pronta. `REPLY` dispara as `actions` (em ordem; uma ação que falha é registrada e a próxima roda) quando o contato clica; `URL` só abre o link (os provedores não avisam o clique). O clique volta com o payload `stl:<t|q>:<idDaOrigem>:<id>`."
+      },
+      "WhatsAppConversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "ckv9x2p0h0000cv7d3k1e5abc"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "contactId": {
+            "type": "string"
+          },
+          "contactName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactWaId": {
+            "type": "string",
+            "description": "Número do WhatsApp só com dígitos (DDI + DDD + número).",
+            "example": "5511987654321"
+          },
+          "contactAvatarUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "IN_PROGRESS",
+              "CLOSED"
+            ]
+          },
+          "assignedUserId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "teamId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Equipe da conversa. Sem responsável, a conversa fica na fila dessa equipe."
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Equipe (id e nome), ou `null`."
+          },
+          "aiActive": {
+            "type": "boolean",
+            "description": "A IA está atendendo — envios manuais são bloqueados até removê-la (`PATCH .../ai`)."
+          },
+          "aiHandoff": {
+            "type": "boolean",
+            "description": "A conversa foi transferida da IA para um humano."
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "avgSentimentScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Média de sentimento das mensagens (-1 a 1)."
+          },
+          "lastMessageAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastMessagePreview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pinned": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "closedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "closeReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactSince": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "connectionId",
+          "contactId",
+          "contactName",
+          "contactWaId",
+          "contactAvatarUrl",
+          "status",
+          "assignedUserId",
+          "teamId",
+          "team",
+          "aiActive",
+          "aiHandoff",
+          "unreadCount",
+          "avgSentimentScore",
+          "lastMessageAt",
+          "lastMessagePreview",
+          "pinned",
+          "archived",
+          "closedAt",
+          "closeReason",
+          "contactSince",
+          "createdAt",
+          "updatedAt"
+        ]
       },
       "WhatsAppMessage": {
         "type": "object",

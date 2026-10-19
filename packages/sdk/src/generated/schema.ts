@@ -241,6 +241,28 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/servicedesk/phases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar fases
+         * @description Fases ativas de cada tipo de chamado (incidente, requisição, mudança, problema), na ordem do quadro, com `nextPhaseIds`: para onde um chamado em cada fase pode ir (`null` = fluxo livre do tipo). Use os ids em `POST /servicedesk/tickets/{ticketId}/phase`. Qualquer membro do ServiceDesk lê; mover continua só para agentes. Paginação por cursor: `limit` (padrão 25, máximo 100) e `cursor` (o `nextCursor` da página anterior). Escopo `api:read` (todo token tem). Roda com as permissões do dono do token.
+         *
+         *     Rate limit por token e por usuário; ao estourar responde `429 RATE_LIMITED` com o header `Retry-After`.
+         */
+        get: operations["listPhases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/servicedesk/tickets": {
         parameters: {
             query?: never;
@@ -551,6 +573,28 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/whatsapp/conversations/waiting": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Conversas aguardando atendimento
+         * @description A fila da caixa de entrada: conversas abertas (`NEW` ou `IN_PROGRESS`), não arquivadas e **sem responsável**, da mais antiga para a mais nova (pela última mensagem). Segue a visibilidade das Equipes do dono do token: a fila geral e as filas das equipes dele (o dono e administradores fora de equipes veem todas). Conversas que a IA está atendendo entram, com `aiActive: true`. Quando uma conversa entra nesta fila, o webhook `communication.conversation.waiting` é enviado. Paginação por cursor: `limit` (padrão 25, máximo 100) e `cursor` (o `nextCursor` da página anterior). Escopo `api:read` (todo token tem). Roda com as permissões do dono do token.
+         *
+         *     Rate limit por token e por usuário; ao estourar responde `429 RATE_LIMITED` com o header `Retry-After`.
+         */
+        get: operations["listWaitingConversations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/whatsapp/messages/template": {
         parameters: {
             query?: never;
@@ -638,6 +682,32 @@ export type components = {
             skipped: number;
             /** @description Linhas de dados lidas. */
             total: number;
+        };
+        ApiV1SdPhase: {
+            active: boolean;
+            /** @enum {string} */
+            category: "NEW" | "IN_PROGRESS" | "WAITING" | "RESOLVED" | "CLOSED" | "CANCELED";
+            color: string | null;
+            completionPercent: number;
+            /** Format: date-time */
+            createdAt: string;
+            description: string | null;
+            /** @example ckv9x2p0h0000us7d3k1e5abc */
+            id: string;
+            isInitial: boolean;
+            /** @example Em atendimento */
+            name: string;
+            /** @description Fases ativas do mesmo tipo para onde um chamado nesta fase pode ir. `null` = o tipo não tem transições cadastradas (fluxo livre: qualquer fase ativa do tipo); `[]` = nenhuma saída. Restrições por departamento valem na hora de mover. */
+            nextPhaseIds: string[] | null;
+            pausesSla: boolean;
+            position: number;
+            requiredFields: string[];
+            requiresApproval: boolean;
+            /** @enum {string} */
+            ticketType: "INCIDENT" | "SERVICE_REQUEST" | "CHANGE" | "PROBLEM";
+            /** Format: date-time */
+            updatedAt: string;
+            wipLimit: number;
         };
         CrmLead: {
             billingType: ("ONE_TIME" | "MONTHLY" | "YEARLY") | null;
@@ -1191,8 +1261,18 @@ export type components = {
             /** @description Passe em `?cursor=` para a próxima página; `null` = última página. */
             nextCursor: string | null;
         };
+        V1SdPhasePage: {
+            items: components["schemas"]["ApiV1SdPhase"][];
+            /** @description Passe em `?cursor=` para a próxima página; `null` = última página. */
+            nextCursor: string | null;
+        };
         V1SdTicketPage: {
             items: components["schemas"]["SdTicket"][];
+            /** @description Passe em `?cursor=` para a próxima página; `null` = última página. */
+            nextCursor: string | null;
+        };
+        V1WhatsAppConversationPage: {
+            items: components["schemas"]["WhatsAppConversation"][];
             /** @description Passe em `?cursor=` para a próxima página; `null` = última página. */
             nextCursor: string | null;
         };
@@ -1267,7 +1347,7 @@ export type components = {
             /** @description `false` só para `steel.ping` (enviado sob demanda). */
             subscribable: boolean;
             /** @enum {string} */
-            type: "steel.ping" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "agents.approval.pending";
+            type: "steel.ping" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "communication.conversation.waiting" | "agents.approval.pending";
         };
         WhatsAppBroadcastDetail: {
             connectionId: string;
@@ -1355,6 +1435,49 @@ export type components = {
             type: "URL";
             /** Format: uri */
             url: string;
+        };
+        WhatsAppConversation: {
+            /** @description A IA está atendendo — envios manuais são bloqueados até removê-la (`PATCH .../ai`). */
+            aiActive: boolean;
+            /** @description A conversa foi transferida da IA para um humano. */
+            aiHandoff: boolean;
+            archived: boolean;
+            assignedUserId: string | null;
+            /** @description Média de sentimento das mensagens (-1 a 1). */
+            avgSentimentScore: number | null;
+            closedAt: string | null;
+            closeReason: string | null;
+            connectionId: string;
+            contactAvatarUrl: string | null;
+            contactId: string;
+            contactName: string | null;
+            /** Format: date-time */
+            contactSince: string;
+            /**
+             * @description Número do WhatsApp só com dígitos (DDI + DDD + número).
+             * @example 5511987654321
+             */
+            contactWaId: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @example ckv9x2p0h0000cv7d3k1e5abc */
+            id: string;
+            lastMessageAt: string | null;
+            lastMessagePreview: string | null;
+            pinned: boolean;
+            /** @enum {string} */
+            status: "NEW" | "IN_PROGRESS" | "CLOSED";
+            /** @description Equipe (id e nome), ou `null`. */
+            team: {
+                id: string;
+                name: string;
+            } | null;
+            /** @description Equipe da conversa. Sem responsável, a conversa fica na fila dessa equipe. */
+            teamId: string | null;
+            unreadCount: number;
+            /** Format: date-time */
+            updatedAt: string;
+            workspaceId: string;
         };
         WhatsAppMessage: {
             /** @description Clique recebido (IN, tipo `BUTTON`): payload do botão (`stl:t:<templateId>:<botão>` ou `stl:q:<respostaId>:<botão>`) ou o id cru de um botão de fora do Steel. */
@@ -1561,8 +1684,8 @@ export type components = {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
-        /** @description Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED` */
-        "403_FORBIDDEN_WORKSPACE_SUSPENDED_2": {
+        /** @description Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `API_TOKEN_SCOPE_REQUIRED` */
+        "403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED": {
             headers: {
                 [name: string]: unknown;
             };
@@ -1570,8 +1693,8 @@ export type components = {
                 "application/json": components["schemas"]["ErrorEnvelope"];
             };
         };
-        /** @description Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED` */
-        "403_FORBIDDEN_WORKSPACE_SUSPENDED_3": {
+        /** @description Acesso negado: `FORBIDDEN`, `WORKSPACE_SUSPENDED`, `API_TOKEN_SCOPE_REQUIRED` */
+        "403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED_2": {
             headers: {
                 [name: string]: unknown;
             };
@@ -2200,6 +2323,39 @@ export interface operations {
             429: components["responses"]["429_RATE_LIMITED"];
         };
     };
+    listPhases: {
+        parameters: {
+            query?: {
+                /** @description Valor de `nextCursor` da página anterior. Omitido = primeira página. */
+                cursor?: string;
+                /** @description Itens por página (1–100). */
+                limit?: number;
+                /** @description Só as fases deste tipo de chamado (INCIDENT, SERVICE_REQUEST, CHANGE, PROBLEM). Omitido = todos os tipos. */
+                ticketType?: "INCIDENT" | "SERVICE_REQUEST" | "CHANGE" | "PROBLEM";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de fases. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data?: components["schemas"]["V1SdPhasePage"];
+                    };
+                };
+            };
+            401: components["responses"]["401_UNAUTHORIZED"];
+            403: components["responses"]["403_FORBIDDEN_MODULE_DISABLED_WORKSPACE_SUSPENDED_API_TOKEN_MODULE_NOT_ALLOWED_3"];
+            422: components["responses"]["422_VALIDATION_ERROR"];
+            429: components["responses"]["429_RATE_LIMITED"];
+        };
+    };
     listTickets: {
         parameters: {
             query?: {
@@ -2453,7 +2609,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_2"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND"];
             422: components["responses"]["422_VALIDATION_ERROR_3"];
             429: components["responses"]["429_RATE_LIMITED"];
@@ -2483,7 +2639,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND_WEBHOOK_DELIVERY_NOT_FOUND"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
@@ -2512,7 +2668,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_2"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
     };
@@ -2528,7 +2684,7 @@ export interface operations {
                 "application/json": {
                     active?: boolean;
                     description?: string;
-                    events: ("*" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "agents.approval.pending")[];
+                    events: ("*" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "communication.conversation.waiting" | "agents.approval.pending")[];
                     /** Format: uri */
                     url: string;
                 };
@@ -2554,7 +2710,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"];
             409: components["responses"]["409_WEBHOOK_ENDPOINT_LIMIT_REACHED"];
             422: components["responses"]["422_VALIDATION_ERROR_WEBHOOK_URL_NOT_ALLOWED"];
             429: components["responses"]["429_RATE_LIMITED"];
@@ -2586,7 +2742,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
@@ -2606,7 +2762,7 @@ export interface operations {
                 "application/json": {
                     active?: boolean;
                     description?: string | null;
-                    events?: ("*" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "agents.approval.pending")[];
+                    events?: ("*" | "servicedesk.ticket.created" | "servicedesk.ticket.updated" | "servicedesk.ticket.assigned" | "servicedesk.ticket.message" | "servicedesk.ticket.resolved" | "servicedesk.ticket.reopened" | "servicedesk.ticket.escalated" | "servicedesk.ticket.csat" | "servicedesk.sla.at_risk" | "servicedesk.sla.breached" | "servicedesk.approval.requested" | "servicedesk.approval.responded" | "crm.lead.created" | "crm.opportunity.stage_changed" | "crm.deal.won" | "crm.deal.lost" | "communication.message.received" | "communication.conversation.waiting" | "agents.approval.pending")[];
                     /** Format: uri */
                     url?: string;
                 };
@@ -2625,7 +2781,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND"];
             422: components["responses"]["422_VALIDATION_ERROR_WEBHOOK_URL_NOT_ALLOWED"];
             429: components["responses"]["429_RATE_LIMITED"];
@@ -2655,7 +2811,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
@@ -2716,7 +2872,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_2"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED"];
             422: components["responses"]["422_VALIDATION_ERROR_3"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
@@ -2756,7 +2912,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["401_UNAUTHORIZED"];
-            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_3"];
+            403: components["responses"]["403_FORBIDDEN_WORKSPACE_SUSPENDED_API_TOKEN_SCOPE_REQUIRED_2"];
             404: components["responses"]["404_WEBHOOK_ENDPOINT_NOT_FOUND"];
             422: components["responses"]["422_VALIDATION_ERROR_2"];
             429: components["responses"]["429_RATE_LIMITED"];
@@ -2788,6 +2944,41 @@ export interface operations {
             401: components["responses"]["401_UNAUTHORIZED"];
             403: components["responses"]["403_FORBIDDEN_MODULE_DISABLED_WORKSPACE_SUSPENDED_API_TOKEN_MODULE_NOT_ALLOWED_2"];
             404: components["responses"]["404_WHATSAPP_BROADCAST_NOT_FOUND"];
+            429: components["responses"]["429_RATE_LIMITED"];
+        };
+    };
+    listWaitingConversations: {
+        parameters: {
+            query?: {
+                /** @description Só as conversas desta conexão. */
+                connectionId?: string;
+                /** @description Valor de `nextCursor` da página anterior. Omitido = primeira página. */
+                cursor?: string;
+                /** @description Itens por página (1–100). */
+                limit?: number;
+                /** @description Só a fila desta equipe. */
+                teamId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de conversas aguardando. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessEnvelope"] & {
+                        data?: components["schemas"]["V1WhatsAppConversationPage"];
+                    };
+                };
+            };
+            401: components["responses"]["401_UNAUTHORIZED"];
+            403: components["responses"]["403_FORBIDDEN_MODULE_DISABLED_WORKSPACE_SUSPENDED_API_TOKEN_MODULE_NOT_ALLOWED_2"];
+            422: components["responses"]["422_VALIDATION_ERROR"];
             429: components["responses"]["429_RATE_LIMITED"];
         };
     };
