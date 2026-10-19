@@ -1,4 +1,8 @@
-import type { WhatsAppTemplate, WhatsAppTemplateSend } from '@steel-so/sdk'
+import type {
+  WhatsAppConversation,
+  WhatsAppTemplate,
+  WhatsAppTemplateSend,
+} from '@steel-so/sdk'
 import { Box, Text } from 'ink'
 import type { Context } from '../context.js'
 import { usageError } from '../errors.js'
@@ -189,6 +193,63 @@ export async function templates(ctx: Context, options: TemplatesOptions) {
           variables:
             variableKeys(templateVariables(template)).join(', ') || '—',
         }))}
+      />
+    ),
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* steel zap waiting                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Name, else the number (`+5511…`). */
+export function contactLabel(conversation: WhatsAppConversation): string {
+  return conversation.contactName || `+${conversation.contactWaId}`
+}
+
+/** When it started waiting, as far as the API tells: the last message. */
+export function waitingSince(conversation: WhatsAppConversation): string {
+  return conversation.lastMessageAt ?? conversation.createdAt
+}
+
+export interface WaitingOptions extends PageOptions {
+  connection?: string
+  team?: string
+}
+
+export async function waiting(ctx: Context, options: WaitingOptions) {
+  const target = await ctx.authTarget()
+  const zap = ctx.client(target, target.token).whatsapp
+  const page = await fetchPages(target, options, (query) =>
+    zap.conversations.waiting({
+      ...query,
+      ...(options.connection ? { connectionId: options.connection } : {}),
+      ...(options.team ? { teamId: options.team } : {}),
+    }),
+  )
+  printPage(ctx, page, {
+    command: 'steel zap waiting',
+    empty: 'Nenhuma conversa aguardando atendimento.',
+    table: (items) => (
+      <Table
+        columns={[
+          { key: 'contact', label: 'Contato' },
+          { key: 'team', label: 'Fila' },
+          { key: 'since', label: 'Última mensagem' },
+          { key: 'unread', label: 'Não lidas' },
+          { key: 'ai', label: 'IA' },
+          { key: 'id', label: 'Id' },
+        ]}
+        rows={items.map((conversation) => ({
+          contact: truncate(contactLabel(conversation), 22),
+          team: truncate(conversation.team?.name ?? 'Geral', 14),
+          since: formatDate(waitingSince(conversation), ctx.deps.timeZone),
+          unread: String(conversation.unreadCount),
+          ai: conversation.aiActive ? 'sim' : '',
+          id: conversation.id,
+          unanswered: conversation.unreadCount > 0 ? '1' : '',
+        }))}
+        highlight={(row) => row.unanswered === '1'}
       />
     ),
   })

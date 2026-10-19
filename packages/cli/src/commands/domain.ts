@@ -28,7 +28,7 @@ export function registerDomainCommands(program: Command, run: Run): void {
   /* ServiceDesk */
   const sdCommand = program
     .command('sd')
-    .description('ServiceDesk: chamados e catálogo')
+    .description('ServiceDesk: chamados, fases e catálogo')
   const ticket = sdCommand.command('ticket').description('Chamados')
 
   paged(
@@ -96,14 +96,28 @@ export function registerDomainCommands(program: Command, run: Run): void {
   confirmable(
     ticket
       .command('move')
-      .description('Move um chamado para outra fase')
+      .description('Move um chamado para outra fase do fluxo')
       .argument('<chamado>', 'id ou número do chamado')
-      .option('--phase <id>', 'id da fase de destino')
+      .option('--phase <fase>', 'nome ou id da fase de destino')
       .option('--solution <texto>', 'solução, ao resolver (@arquivo ou @-)')
       .option('--comment <texto>', 'comentário da mudança de fase'),
-  ).action(
-    run((ctx, [id], options) => sd.ticketMove(ctx, id as string, options)),
   )
+    .addHelpText(
+      'after',
+      '\nExemplos:\n  steel sd ticket move 42 --phase "Em atendimento"\n  steel sd ticket move 42 --phase Resolvido --solution @solucao.md --yes\n\nSem --phase, num terminal, mostra só as fases para onde o chamado pode ir.\n',
+    )
+    .action(
+      run((ctx, [id], options) => sd.ticketMove(ctx, id as string, options)),
+    )
+
+  paged(
+    sdCommand
+      .command('phases')
+      .description('Fases de cada tipo de chamado e para onde cada uma vai')
+      .option('--type <tipo>', 'incidente, requisicao, mudanca ou problema'),
+  )
+    .addHelpText('after', '\nExemplo:\n  steel sd phases --type incidente\n')
+    .action(run((ctx, _, options) => sd.phases(ctx, options)))
 
   paged(
     sdCommand
@@ -191,7 +205,24 @@ export function registerDomainCommands(program: Command, run: Run): void {
   /* Comunicação */
   const zapCommand = program
     .command('zap')
-    .description('Comunicação (WhatsApp): templates, envios e disparos')
+    .description(
+      'Comunicação (WhatsApp): fila de atendimento, templates, envios e disparos',
+    )
+
+  paged(
+    zapCommand
+      .command('waiting')
+      .description(
+        'Conversas aguardando atendimento (sem responsável), mais antigas primeiro',
+      )
+      .option('--connection <id>', 'só desta conexão')
+      .option('--team <id>', 'só a fila desta equipe'),
+  )
+    .addHelpText(
+      'after',
+      '\nSegue as Equipes do dono do token: a fila geral e as filas das equipes dele.\nResponda com `steel zap send --conversation <id> --template <nome>`.\n',
+    )
+    .action(run((ctx, _, options) => zap.waiting(ctx, options)))
 
   paged(
     zapCommand

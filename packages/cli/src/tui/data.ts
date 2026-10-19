@@ -5,12 +5,14 @@ import {
   collectAll,
   type Me,
   type ModuleKind,
+  type SdPhase,
   type SdPhaseSummary,
   type SdTicket,
   type SteelClient,
   type SteelResult,
-  type WhatsAppTemplate,
+  type WhatsAppConversation,
 } from '@steel-so/sdk'
+import { nextPhases } from '../commands/sd.js'
 import { CliError, fromSteelError } from '../errors.js'
 import { MAX_PAGE_SIZE } from '../lib/domain.js'
 
@@ -99,14 +101,20 @@ export interface QueueData {
   tickets: SdTicket[]
   breached: number
   atRisk: number
+  /** Every active phase (`GET /servicedesk/phases`); absent on old servers. */
+  phases?: SdPhase[]
 }
 
-export function summarizeQueue(tickets: SdTicket[]): QueueData {
+export function summarizeQueue(
+  tickets: SdTicket[],
+  phases?: SdPhase[],
+): QueueData {
   const sorted = sortBySlaRisk(tickets)
   return {
     tickets: sorted,
     breached: sorted.filter((ticket) => rank(ticket) === 0).length,
     atRisk: sorted.filter((ticket) => rank(ticket) === 1).length,
+    ...(phases ? { phases } : {}),
   }
 }
 
@@ -115,8 +123,8 @@ export async function loadQueue(session: DashboardSession): Promise<QueueData> {
     throw moduleDisabled('ServiceDesk')
   }
   const sd = session.client.servicedesk
-  const page = check(
-    await collectAll<SdTicket>((cursor) =>
+  const [tickets, phases] = await Promise.all([
+    collectAll<SdTicket>((cursor) =>
       sd.tickets.list({
         assigneeId: ['me'],
         status: [...QUEUE_STATUSES],
@@ -124,14 +132,21 @@ export async function loadQueue(session: DashboardSession): Promise<QueueData> {
         cursor,
       }),
     ),
-    session.url,
+    collectAll<SdPhase>((cursor) =>
+      sd.phases({ limit: MAX_PAGE_SIZE, cursor }),
+    ),
+  ])
+  // The phase list only feeds the move picker: without it (an older
+  // server), the picker falls back to the phases seen in the queue.
+  return summarizeQueue(
+    check(tickets, session.url).items,
+    phases.ok ? phases.data.items : undefined,
   )
-  return summarizeQueue(page.items)
 }
 
 /**
- * Phases a ticket can move to. The API v1 has no phase list, so these are
- * the phases seen in the queue (same workflow), current one excluded.
+ * Fallback for servers without `GET /servicedesk/phases`: the phases seen
+ * in the queue (same workflow), current one excluded.
  */
 export function knownPhases(
   tickets: SdTicket[],
@@ -142,6 +157,24 @@ export function knownPhases(
   return [...phases.values()]
     .filter((phase) => phase.id !== current)
     .sort((a, b) => a.position - b.position)
+}
+
+/**
+ * Where a ticket may move, for the dashboard picker. `exact` = from the
+ * workflow (`nextPhaseIds`); otherwise a guess from the queue, so the
+ * picker also offers typing an id.
+ */
+export function movablePhases(
+  data: QueueData,
+  ticket: SdTicket,
+): { phases: SdPhaseSummary[]; exact: boolean } {
+  if (!data.phases) {
+    return { phases: knownPhases(data.tickets, ticket.phaseId), exact: false }
+  }
+  const sameType = data.phases.filter(
+    (phase) => phase.ticketType === ticket.type,
+  )
+  return { phases: nextPhases(sameType, ticket.phaseId), exact: true }
 }
 
 /* ------------------------------------------------------------------ */
@@ -214,29 +247,28 @@ export async function loadCrm(session: DashboardSession): Promise<CrmData> {
 /* ------------------------------------------------------------------ */
 
 export interface ZapData {
-  templates: WhatsAppTemplate[]
+  /** Waiting for an agent, oldest first (the API order). */
+  conversations: WhatsAppConversation[]
+  /** How many of them the AI is answering meanwhile. */
+  withAi: number
 }
 
 export async function loadZap(session: DashboardSession): Promise<ZapData> {
   if (!hasModule(session.me, 'COMMUNICATION')) {
     throw moduleDisabled('Comunicação')
   }
-  const result = await collectAll<WhatsAppTemplate>((cursor) =>
-    session.client.whatsapp.templates({
-      status: 'APPROVED',
+  const result = await collectAll<WhatsAppConversation>((cursor) =>
+    session.client.whatsapp.conversations.waiting({
       limit: MAX_PAGE_SIZE,
       cursor,
     }),
   )
-  return { templates: check(result, session.url).items }
-}
-
-/** Body text of a template, for the detail view. */
-export function templateBody(template: WhatsAppTemplate): string {
-  const parts = (template.components as Array<{ type?: string; text?: string }>)
-    .filter((part) => typeof part?.text === 'string')
-    .map((part) => part.text as string)
-  return parts.join('\n\n')
+  const conversations = check(result, session.url).items
+  return {
+    conversations,
+    withAi: conversations.filter((conversation) => conversation.aiActive)
+      .length,
+  }
 }
 
 /* ------------------------------------------------------------------ */

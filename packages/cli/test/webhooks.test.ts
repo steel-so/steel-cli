@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { endpointState } from '../src/commands/webhooks.js'
-import { fail, harness, ok } from './harness.js'
+import { fail, harness, json, ok } from './harness.js'
 
 const BASE = 'https://homologacao.stratustelecom.com.br/api/v1/webhooks'
 
@@ -109,6 +109,12 @@ describe('steel webhooks events', () => {
       subscribable: true,
     },
     {
+      type: 'communication.conversation.waiting',
+      module: 'COMMUNICATION',
+      description: 'Conversa entrou na fila',
+      subscribable: true,
+    },
+    {
       type: 'agents.approval.pending',
       module: 'AGENTS',
       description: 'Aprovação',
@@ -121,11 +127,14 @@ describe('steel webhooks events', () => {
     h.reply(ok(catalog), ok(catalog))
     await h.run('webhooks', 'events')
     expect(h.out()).toContain('TIPO')
-    expect(h.out()).toContain(
-      'steel.ping               Plataforma  Teste (só sob demanda)',
+    expect(h.out()).toMatch(
+      /steel\.ping\s+Plataforma\s+Teste \(só sob demanda\)/,
     )
-    expect(h.out()).toContain('crm.lead.created         CRM')
+    expect(h.out()).toMatch(/crm\.lead\.created\s+CRM/)
     expect(h.out()).toContain('Agentes')
+    expect(h.out()).toMatch(
+      /communication\.conversation\.waiting\s+Comunicação\s+Conversa entrou na fila/,
+    )
     expect(h.requests[0]?.url).toBe(`${BASE}/events`)
 
     h.stdout.output = ''
@@ -252,6 +261,64 @@ describe('steel webhooks endpoints', () => {
       ),
     ).toBe(1)
     expect(h.errJson().error.message).toBe('URL privada')
+  })
+
+  it('subscribes to communication.conversation.waiting', async () => {
+    const h = await loggedIn()
+    const waiting = {
+      ...endpoint,
+      events: ['communication.conversation.waiting'],
+    }
+    h.reply(ok({ endpoint: waiting, secret: 's' }, 201))
+    await h.run(
+      'webhooks',
+      'endpoints',
+      'create',
+      '--url',
+      endpoint.url,
+      '--events',
+      'communication.conversation.waiting',
+    )
+    expect(await h.requests[0]?.json()).toEqual({
+      url: endpoint.url,
+      events: ['communication.conversation.waiting'],
+    })
+    expect(h.outJson().endpoint.events).toEqual([
+      'communication.conversation.waiting',
+    ])
+  })
+
+  it('exits 3 naming the missing scope on a read-only token', async () => {
+    const h = await loggedIn()
+    h.reply(
+      json(403, {
+        success: false,
+        statusCode: 403,
+        message: 'Este token só permite leitura.',
+        error: {
+          code: 'API_TOKEN_SCOPE_REQUIRED',
+          details: { requiredScope: 'api:write' },
+        },
+      }),
+    )
+    expect(
+      await h.run(
+        'webhooks',
+        'endpoints',
+        'create',
+        '--url',
+        endpoint.url,
+        '--events',
+        '*',
+      ),
+    ).toBe(3)
+    expect(h.errJson().error).toMatchObject({
+      code: 'API_TOKEN_SCOPE_REQUIRED',
+      message: 'Este token só permite leitura.',
+    })
+    expect(h.errJson().error.hint).toContain(
+      'O token não tem o escopo api:write.',
+    )
   })
 
   it('needs at least one event', async () => {

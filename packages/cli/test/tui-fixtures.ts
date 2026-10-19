@@ -76,6 +76,9 @@ export function mockClient() {
         move: vi.fn(),
       },
       catalog: vi.fn(async () => empty),
+      // An older server by default: the move picker falls back to the
+      // phases seen in the queue. Tests of the workflow mock a page.
+      phases: vi.fn(async () => errResult(404, 'NOT_FOUND')),
     },
     crm: {
       leads: { list: vi.fn(), create: vi.fn(), import: vi.fn() },
@@ -84,6 +87,7 @@ export function mockClient() {
     },
     whatsapp: {
       templates: vi.fn(async () => empty),
+      conversations: { waiting: vi.fn(async () => empty) },
       sendTemplate: vi.fn(),
       broadcast: vi.fn(),
     },

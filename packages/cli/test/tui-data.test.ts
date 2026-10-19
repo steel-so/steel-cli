@@ -1,9 +1,4 @@
-import type {
-  CrmOpportunity,
-  CrmPipeline,
-  SdTicket,
-  WhatsAppTemplate,
-} from '@steel-so/sdk'
+import type { CrmOpportunity, CrmPipeline, SdTicket } from '@steel-so/sdk'
 import { describe, expect, it } from 'vitest'
 import { CliError } from '../src/errors.js'
 import { bareInvocation } from '../src/main.js'
@@ -14,18 +9,20 @@ import {
   loadQueue,
   loadZap,
   matchesFilter,
+  movablePhases,
   sortBySlaRisk,
   summarizeQueue,
-  templateBody,
   toCliError,
 } from '../src/tui/data.js'
 import { fitColumns, scrollOffset } from '../src/tui/widgets.js'
 import {
   clock,
+  conversation,
+  incidentPhases,
   opportunity,
   page,
   pipelineList,
-  template,
+  sdPhase,
   ticket,
 } from './domain-fixtures.js'
 import { errResult, mockClient, okResult, session } from './tui-fixtures.js'
@@ -103,6 +100,23 @@ describe('ServiceDesk queue', () => {
       2,
       expect.objectContaining({ cursor: 'c2' }),
     )
+    // The default mock is an older server without the phase list.
+    expect(data.phases).toBeUndefined()
+  })
+
+  it('loads every phase alongside the queue', async () => {
+    const client = mockClient()
+    client.servicedesk.phases
+      .mockResolvedValueOnce(okResult(page(incidentPhases, 'c2')) as never)
+      .mockResolvedValueOnce(okResult(page([])) as never)
+    const data = await loadQueue(session(client))
+    expect(data.phases?.map((phase) => phase.id)).toEqual(
+      incidentPhases.map((phase) => phase.id),
+    )
+    expect(client.servicedesk.phases).toHaveBeenNthCalledWith(1, {
+      limit: 100,
+      cursor: undefined,
+    })
   })
 
   it('refuses without the module and maps API errors', async () => {
@@ -120,6 +134,34 @@ describe('ServiceDesk queue', () => {
       message: 'Token inválido, expirado ou revogado.',
       hint: 'Rode `steel login` para entrar de novo.',
     })
+  })
+
+  it('offers the workflow next phases of the same ticket type', () => {
+    const phases = [
+      ...incidentPhases,
+      sdPhase({ id: 'ch_new', ticketType: 'CHANGE', nextPhaseIds: null }),
+    ] as never
+    const inWork = tk({ phaseId: 'ph_work' })
+    const waiting = tk({ phaseId: 'ph_wait' })
+    const ids = (result: { phases: Array<{ id: string }> }) =>
+      result.phases.map((phase) => phase.id)
+
+    const next = movablePhases(summarizeQueue([inWork], phases), inWork)
+    expect(next.exact).toBe(true)
+    expect(ids(next)).toEqual(['ph_wait', 'ph_done'])
+    expect(
+      ids(movablePhases(summarizeQueue([waiting], phases), waiting)),
+    ).toEqual(['ph_new', 'ph_work', 'ph_done'])
+    // A phase missing from the list (inactive now) is free flow too.
+    const stray = tk({ phaseId: 'ph_gone' })
+    expect(ids(movablePhases(summarizeQueue([stray], phases), stray))).toEqual([
+      'ph_new',
+      'ph_work',
+      'ph_wait',
+      'ph_done',
+    ])
+    const fallback = movablePhases(summarizeQueue([inWork]), inWork)
+    expect(fallback.exact).toBe(false)
   })
 
   it('lists the phases seen in the queue, current one excluded', () => {
@@ -201,15 +243,17 @@ describe('CRM board', () => {
 })
 
 describe('Comunicação', () => {
-  it('loads approved templates', async () => {
+  it('loads every waiting conversation and counts the ones with the AI', async () => {
     const client = mockClient()
-    client.whatsapp.templates.mockResolvedValue(
-      okResult(page([template()])) as never,
-    )
+    client.whatsapp.conversations.waiting
+      .mockResolvedValueOnce(okResult(page([conversation()], 'c2')) as never)
+      .mockResolvedValueOnce(
+        okResult(page([conversation({ id: 'cv_2', aiActive: true })])) as never,
+      )
     const data = await loadZap(session(client))
-    expect(data.templates).toHaveLength(1)
-    expect(client.whatsapp.templates).toHaveBeenCalledWith({
-      status: 'APPROVED',
+    expect(data.conversations.map((item) => item.id)).toEqual(['cv_1', 'cv_2'])
+    expect(data.withAi).toBe(1)
+    expect(client.whatsapp.conversations.waiting).toHaveBeenNthCalledWith(1, {
       limit: 100,
       cursor: undefined,
     })
@@ -218,25 +262,12 @@ describe('Comunicação', () => {
     ).rejects.toMatchObject({
       message: 'O token não tem acesso ao módulo Comunicação.',
     })
-    client.whatsapp.templates.mockResolvedValue(
+    client.whatsapp.conversations.waiting.mockResolvedValue(
       errResult(0, 'NETWORK_ERROR') as never,
     )
     await expect(loadZap(session(client))).rejects.toMatchObject({
       code: 'NETWORK_ERROR',
     })
-  })
-
-  it('joins the text components of a template', () => {
-    expect(templateBody(template() as unknown as WhatsAppTemplate)).toBe(
-      'Oi {{1}}\n\nOlá {{1}}, seu código é {{2}}. {{1}}!\n\nSteel',
-    )
-    expect(
-      templateBody(
-        template({
-          components: [{ type: 'BUTTONS' }, null],
-        }) as unknown as WhatsAppTemplate,
-      ),
-    ).toBe('')
   })
 })
 

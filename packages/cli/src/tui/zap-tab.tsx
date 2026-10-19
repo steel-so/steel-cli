@@ -1,10 +1,12 @@
-import type { WhatsAppTemplate } from '@steel-so/sdk'
+import type { WhatsAppConversation } from '@steel-so/sdk'
 import { Box, Text, useInput } from 'ink'
 import { useEffect } from 'react'
+import { contactLabel, waitingSince } from '../commands/zap.js'
+import { formatDate } from '../lib/format.js'
 import { Code, Hint, KeyValue } from '../ui/components.js'
-import { label, QUALITY_LABELS } from '../ui/labels.js'
+import { CONVERSATION_STATUS_LABELS, label } from '../ui/labels.js'
 import { theme } from '../ui/theme.js'
-import { loadZap, templateBody, type ZapData } from './data.js'
+import { loadZap, type ZapData } from './data.js'
 import {
   type DetailProps,
   ListTab,
@@ -12,17 +14,19 @@ import {
   type TabProps,
 } from './list-tab.js'
 
-const QUALITY_COLORS: Record<string, string> = {
-  YELLOW: theme.warning,
-  RED: theme.danger,
+function statusText(conversation: WhatsAppConversation): string {
+  return conversation.aiActive
+    ? 'Com a IA'
+    : label(CONVERSATION_STATUS_LABELS, conversation.status)
 }
 
-function TemplateDetail({
-  item: template,
+function ConversationDetail({
+  item: conversation,
+  session,
   active,
   onBack,
   onMode,
-}: DetailProps<ZapData, WhatsAppTemplate>) {
+}: DetailProps<ZapData, WhatsAppConversation>) {
   useEffect(() => {
     onMode('detail')
   }, [onMode])
@@ -35,72 +39,90 @@ function TemplateDetail({
   return (
     <Box flexDirection='column'>
       <Text bold color={theme.brand}>
-        {template.name}
+        {contactLabel(conversation)}
       </Text>
       <Text> </Text>
       <KeyValue
         rows={[
-          ['Idioma', template.language],
-          ['Categoria', template.category],
-          ['Qualidade', label(QUALITY_LABELS, template.quality)],
-          ['Conexão', template.connectionId],
+          ['Número', `+${conversation.contactWaId}`],
+          ['Fila', conversation.team?.name ?? 'Geral'],
+          ['Status', statusText(conversation)],
+          ['Não lidas', String(conversation.unreadCount)],
+          [
+            'Última mensagem',
+            formatDate(waitingSince(conversation), session.timeZone),
+          ],
+          ['Conexão', conversation.connectionId],
         ]}
       />
       <Box marginTop={1}>
-        <Text>{templateBody(template) || '(sem texto)'}</Text>
+        <Text>{conversation.lastMessagePreview?.trim() || '(sem prévia)'}</Text>
       </Box>
       <Box marginTop={1} flexDirection='column'>
-        <Hint>
-          Envie com{' '}
-          <Code>
-            steel zap send --template {template.name} --to {'<número>'}
-          </Code>
-          .
-        </Hint>
+        {conversation.aiActive ? (
+          <Hint>
+            A IA está atendendo: envios manuais ficam bloqueados até removê-la
+            no Steel.
+          </Hint>
+        ) : (
+          <Hint>
+            Responda com{' '}
+            <Code>
+              steel zap send --conversation {conversation.id} --template{' '}
+              {'<nome>'}
+            </Code>
+            .
+          </Hint>
+        )}
         <Text color={theme.muted}>Esc volta</Text>
       </Box>
     </Box>
   )
 }
 
-export const zapConfig: ListTabConfig<ZapData, WhatsAppTemplate> = {
-  loadingLabel: 'Carregando a Comunicação…',
+export const zapConfig: ListTabConfig<ZapData, WhatsAppConversation> = {
+  loadingLabel: 'Carregando a fila de atendimento…',
   load: loadZap,
-  items: (data) => data.templates,
-  id: (template) => template.id,
+  items: (data) => data.conversations,
+  id: (conversation) => conversation.id,
   columns: [
-    { key: 'name', label: 'Template', flex: true },
-    { key: 'language', label: 'Idioma' },
-    { key: 'category', label: 'Categoria' },
-    { key: 'quality', label: 'Qualidade' },
+    { key: 'contact', label: 'Contato', flex: true },
+    { key: 'team', label: 'Fila' },
+    { key: 'status', label: 'Status' },
+    { key: 'since', label: 'Última msg.' },
+    { key: 'unread', label: 'Não lidas' },
   ],
-  row: (template) => ({
-    id: template.id,
-    color: QUALITY_COLORS[template.quality],
+  row: (conversation, _data, session) => ({
+    id: conversation.id,
+    color: conversation.aiActive ? theme.muted : undefined,
     cells: {
-      name: template.name,
-      language: template.language,
-      category: template.category,
-      quality: label(QUALITY_LABELS, template.quality),
+      contact: contactLabel(conversation),
+      team: conversation.team?.name ?? 'Geral',
+      status: statusText(conversation),
+      since: formatDate(waitingSince(conversation), session.timeZone),
+      unread: String(conversation.unreadCount),
     },
   }),
-  text: (template) =>
-    `${template.name} ${template.category} ${templateBody(template)}`,
-  empty: 'Nenhum template aprovado nas conexões do workspace.',
-  // The API v1 has no conversation list yet: say so instead of faking it.
-  summaryHeight: 4,
-  summary: () => (
-    <Box flexDirection='column'>
-      <Text>
-        <Text bold>Templates aprovados</Text>
-      </Text>
+  text: (conversation) =>
+    [
+      conversation.contactName ?? '',
+      conversation.contactWaId,
+      conversation.team?.name ?? 'Geral',
+      conversation.lastMessagePreview ?? '',
+    ].join(' '),
+  empty: 'Nenhuma conversa aguardando atendimento. Fila limpa!',
+  summary: (data) => (
+    <Text>
+      <Text bold>Aguardando atendimento</Text>{' '}
       <Text color={theme.muted}>
-        As conversas aguardando atendimento ainda não estão na API v1; abra o
-        Steel no navegador para vê-las.
+        {data.conversations.length === 1
+          ? '1 conversa'
+          : `${data.conversations.length} conversas`}
+        {data.withAi > 0 ? ` · ${data.withAi} com a IA` : ''}
       </Text>
-    </Box>
+    </Text>
   ),
-  Detail: TemplateDetail,
+  Detail: ConversationDetail,
 }
 
 export function ZapTab(props: TabProps) {

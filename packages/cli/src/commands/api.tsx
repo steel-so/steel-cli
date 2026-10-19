@@ -1,5 +1,12 @@
 import type { Context } from '../context.js'
-import { CliError, EXIT, fromSteelError, usageError } from '../errors.js'
+import {
+  CliError,
+  EXIT,
+  fromSteelError,
+  requiredScope,
+  scopeHint,
+  usageError,
+} from '../errors.js'
 import { ErrorMessage } from '../ui/components.js'
 import { formatJson } from '../ui/json.js'
 
@@ -130,13 +137,20 @@ export async function api(
 
   if (response.ok) return EXIT.OK
   if (!ctx.json && ctx.io.stderr.isTTY) {
-    const code =
+    const error =
       typeof response.body === 'object' && response.body !== null
-        ? (response.body as { error?: { code?: string } }).error?.code
+        ? (response.body as { error?: { code?: string; details?: unknown } })
+            .error
         : undefined
+    const code = error?.code
     ctx.render(
       <ErrorMessage
         message={`${method} ${path} respondeu ${response.status}${code ? ` (${code})` : ''}.`}
+        hint={
+          code === 'API_TOKEN_SCOPE_REQUIRED'
+            ? scopeHint(requiredScope(error?.details))
+            : undefined
+        }
       />,
       ctx.io.stderr,
     )

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createSteelClient,
+  isConversationWaitingEvent,
   type ListenMessage,
   signPayload,
 } from '../src/index.js'
@@ -321,5 +322,57 @@ describe('webhooks.listen', () => {
       reason: 'network',
       message: 'socket hang up',
     })
+  })
+})
+
+describe('isConversationWaitingEvent', () => {
+  const base = {
+    id: 'evt_1',
+    createdAt: '2099-01-10T09:00:00.000Z',
+    workspaceId: 'ws_1',
+  }
+  const data = {
+    conversation: {
+      id: 'cv_1',
+      status: 'NEW',
+      connectionId: 'conn_1',
+      teamId: null,
+      aiActive: false,
+      unreadCount: 2,
+      lastMessageAt: '2099-01-10T09:00:00.000Z',
+      createdAt: '2099-01-10T09:00:00.000Z',
+    },
+    contact: { id: 'ct_1', waId: '5511999990000', name: 'Ana' },
+    reason: 'new',
+    actorId: null,
+  }
+
+  it('narrows a waiting event with its data', () => {
+    const event = {
+      ...base,
+      type: 'communication.conversation.waiting',
+      data,
+    }
+    expect(isConversationWaitingEvent(event)).toBe(true)
+    if (isConversationWaitingEvent(event)) {
+      expect(event.data.contact.waId).toBe('5511999990000')
+    }
+  })
+
+  it('rejects other types, a missing body and malformed data', () => {
+    expect(isConversationWaitingEvent(null)).toBe(false)
+    expect(isConversationWaitingEvent(undefined)).toBe(false)
+    expect(
+      isConversationWaitingEvent({ ...base, type: 'crm.deal.won', data }),
+    ).toBe(false)
+    for (const bad of [null, 'x', {}, { conversation: { id: 'cv_1' } }]) {
+      expect(
+        isConversationWaitingEvent({
+          ...base,
+          type: 'communication.conversation.waiting',
+          data: bad,
+        }),
+      ).toBe(false)
+    }
   })
 })

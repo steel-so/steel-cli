@@ -3,8 +3,10 @@ import {
   catalogItems,
   clock,
   domainHarness,
+  incidentPhases,
   page,
   path,
+  sdPhase,
   ticket,
 } from './domain-fixtures.js'
 import { fail, ok } from './harness.js'
@@ -421,13 +423,20 @@ describe('steel sd ticket comment', () => {
 })
 
 describe('steel sd ticket move', () => {
-  it('moves with a solution and a comment', async () => {
-    const h = await domainHarness({ files: { 'fix.md': 'Troquei o cabo' } })
-    const moved = ticket({
+  const inWork = () =>
+    ticket({
+      phaseId: 'ph_work',
+      phase: { ...ticket().phase, id: 'ph_work', name: 'Em atendimento' },
+    })
+  const resolved = () =>
+    ticket({
       phase: { ...ticket().phase, name: 'Resolvido', category: 'RESOLVED' },
       completionPercent: 100,
     })
-    h.reply(ok(moved))
+
+  it('resolves --phase by name within the ticket type and moves', async () => {
+    const h = await domainHarness({ files: { 'fix.md': 'Troquei o cabo' } })
+    h.reply(ok(inWork()), ok(page(incidentPhases)), ok(resolved()))
 
     await h.run(
       'sd',
@@ -435,26 +444,140 @@ describe('steel sd ticket move', () => {
       'move',
       '42',
       '--phase',
-      'ph_done',
+      'resolvido',
       '--solution',
       '@fix.md',
       '--comment',
       'ok',
     )
 
-    expect(path(h.requests[0])).toBe(
+    expect(h.requests.map(path)).toEqual([
+      'GET /api/v1/servicedesk/tickets/42',
+      'GET /api/v1/servicedesk/phases?ticketType=INCIDENT&limit=100',
       'POST /api/v1/servicedesk/tickets/42/phase',
-    )
-    expect(await h.requests[0]?.json()).toEqual({
+    ])
+    expect(await h.requests[2]?.json()).toEqual({
       phaseId: 'ph_done',
       solution: 'Troquei o cabo',
       comment: 'ok',
     })
+    expect(h.outJson().phase.name).toBe('Resolvido')
   })
 
-  it('asks for the phase and confirms on a terminal', async () => {
+  it('accepts a phase id and any phase of a free-flow phase', async () => {
+    const h = await domainHarness()
+    const waiting = ticket({
+      phaseId: 'ph_wait',
+      phase: { ...ticket().phase, id: 'ph_wait', name: 'Aguardando cliente' },
+    })
+    h.reply(ok(waiting), ok(page(incidentPhases)), ok(ticket()))
+
+    expect(await h.run('sd', 'ticket', 'move', '42', '--phase', 'ph_new')).toBe(
+      0,
+    )
+    expect(await h.requests[2]?.json()).toEqual({ phaseId: 'ph_new' })
+  })
+
+  it('refuses a phase the workflow does not allow, before moving', async () => {
+    const h = await domainHarness()
+    h.reply(ok(ticket()), ok(page(incidentPhases)))
+
+    expect(
+      await h.run('sd', 'ticket', 'move', '42', '--phase', 'Resolvido'),
+    ).toBe(2)
+    expect(h.errJson().error).toMatchObject({
+      message: 'O chamado INC-42 não pode ir de Novo para Resolvido.',
+      hint: 'Fases permitidas: Em atendimento.',
+    })
+    expect(h.requests).toHaveLength(2)
+
+    const same = await domainHarness()
+    same.reply(ok(ticket()), ok(page(incidentPhases)))
+    expect(
+      await same.run('sd', 'ticket', 'move', '42', '--phase', 'novo'),
+    ).toBe(2)
+    expect(same.errJson().error.message).toBe(
+      'O chamado INC-42 já está na fase Novo.',
+    )
+
+    const dead = await domainHarness()
+    const done = ticket({
+      phaseId: 'ph_done',
+      phase: { ...ticket().phase, id: 'ph_done', name: 'Resolvido' },
+    })
+    dead.reply(ok(done), ok(page(incidentPhases)))
+    expect(
+      await dead.run('sd', 'ticket', 'move', '42', '--phase', 'Novo'),
+    ).toBe(2)
+    expect(dead.errJson().error.hint).toBe('A fase Resolvido não tem saída.')
+  })
+
+  it('reports unknown and ambiguous phase names', async () => {
+    const h = await domainHarness()
+    h.reply(ok(ticket()), ok(page(incidentPhases)))
+    expect(await h.run('sd', 'ticket', 'move', '42', '--phase', 'Xyz')).toBe(2)
+    expect(h.errJson().error).toMatchObject({
+      message: 'Fase não encontrada: Xyz',
+      hint: 'Veja as fases com `steel sd phases --type <tipo>`.',
+    })
+
+    const twice = await domainHarness()
+    twice.reply(
+      ok(ticket()),
+      ok(page([...incidentPhases, sdPhase({ id: 'ph_dup', name: 'Novo' })])),
+    )
+    expect(
+      await twice.run('sd', 'ticket', 'move', '42', '--phase', 'novo'),
+    ).toBe(2)
+    expect(twice.errJson().error.message).toBe('Há mais de uma fase “novo”.')
+  })
+
+  it('offers only the next phases on a terminal and asks for the solution', async () => {
+    const h = await domainHarness({
+      answers: ['ph_done', 'Reiniciei o roteador', true],
+    })
+    h.reply(ok(inWork()), ok(page(incidentPhases)), ok(resolved()))
+
+    await h.run('sd', 'ticket', 'move', '42')
+
+    expect(h.prompt?.questions).toEqual([
+      'Mover INC-42 (Em atendimento) para',
+      'Solução (a fase Resolvido exige)',
+      'Mover o chamado INC-42 para a fase Resolvido?',
+    ])
+    expect(h.prompt?.choices[0]).toEqual([
+      {
+        value: 'ph_wait',
+        label: 'Aguardando cliente',
+        hint: 'Aguardando · 60%',
+      },
+      { value: 'ph_done', label: 'Resolvido', hint: 'Resolvido · 100%' },
+    ])
+    expect(await h.requests[2]?.json()).toEqual({
+      phaseId: 'ph_done',
+      solution: 'Reiniciei o roteador',
+    })
+    expect(h.out()).toContain('INC-42 agora está em Resolvido (100%).')
+  })
+
+  it('says when the current phase has no way out', async () => {
+    const h = await domainHarness({ answers: [] })
+    const done = ticket({
+      phaseId: 'ph_done',
+      phase: { ...ticket().phase, id: 'ph_done', name: 'Resolvido' },
+    })
+    h.reply(ok(done), ok(page(incidentPhases)))
+    expect(await h.run('sd', 'ticket', 'move', '42')).toBe(1)
+    expect(h.err()).toContain(
+      'O chamado INC-42 está na fase Resolvido, que não tem saída.',
+    )
+  })
+
+  it('falls back to a phase id on servers without the phase list', async () => {
     const h = await domainHarness({ answers: ['ph_2', true] })
     h.reply(
+      ok(ticket()),
+      fail(404, 'NOT_FOUND'),
       ok(
         ticket({
           phase: { ...ticket().phase, name: 'Em andamento' },
@@ -467,16 +590,79 @@ describe('steel sd ticket move', () => {
 
     expect(h.prompt?.questions).toEqual([
       'Id da fase de destino',
-      'Mover o chamado 42 para a fase ph_2?',
+      'Mover o chamado INC-42 para a fase ph_2?',
     ])
-    expect(await h.requests[0]?.json()).toEqual({ phaseId: 'ph_2' })
+    expect(await h.requests[2]?.json()).toEqual({ phaseId: 'ph_2' })
     expect(h.out()).toContain('INC-42 agora está em Em andamento (40%).')
   })
 
-  it('needs --phase in a script', async () => {
+  it('stops on other phase-list errors', async () => {
+    const h = await domainHarness()
+    h.reply(ok(ticket()), fail(403, 'API_TOKEN_MODULE_NOT_ALLOWED'))
+    expect(await h.run('sd', 'ticket', 'move', '42', '--phase', 'x')).toBe(3)
+    expect(h.requests).toHaveLength(2)
+  })
+
+  it('needs --phase in a script, before any request', async () => {
     const h = await domainHarness()
     expect(await h.run('sd', 'ticket', 'move', '42')).toBe(2)
     expect(h.errJson().error.message).toBe('Falta --phase.')
+    expect(h.requests).toHaveLength(0)
+  })
+})
+
+describe('steel sd phases', () => {
+  it('prints the JSON page with the type filter', async () => {
+    const h = await domainHarness()
+    h.reply(ok(page(incidentPhases, 'c2')))
+
+    await h.run('sd', 'phases', '--type', 'incidente', '--limit', '4')
+
+    expect(path(h.requests[0])).toBe(
+      'GET /api/v1/servicedesk/phases?limit=4&ticketType=INCIDENT',
+    )
+    expect(h.outJson()).toEqual(page(incidentPhases, 'c2'))
+  })
+
+  it('renders the workflow as a table on a terminal', async () => {
+    const h = await domainHarness({ tty: true })
+    h.reply(
+      ok(
+        page(
+          [
+            ...incidentPhases,
+            sdPhase({
+              id: 'ph_x',
+              name: 'Triagem',
+              nextPhaseIds: ['ph_elsewhere'],
+            }),
+          ],
+          'c2',
+        ),
+      ),
+    )
+
+    await h.run('sd', 'phases', '--type', 'incidente')
+
+    const out = h.out()
+    const line = (text: string) =>
+      out.split('\n').find((row) => row.includes(text)) ?? ''
+    expect(line('ph_work')).toContain('Aguardando cliente, Resolvido')
+    expect(line('ph_wait')).toContain('qualquer')
+    expect(line('ph_wait')).toContain('pausa SLA')
+    expect(line('ph_done')).toContain('aprovação')
+    expect(line('ph_done')).toContain('100%')
+    expect(line('ph_new')).toContain('inicial')
+    expect(line('ph_x')).toContain('ph_elsewhere')
+    expect(out).toContain('steel sd phases --type incidente --cursor c2')
+  })
+
+  it('shows the empty state', async () => {
+    const h = await domainHarness({ tty: true })
+    h.reply(ok(page([])))
+    await h.run('sd', 'phases')
+    expect(path(h.requests[0])).toBe('GET /api/v1/servicedesk/phases')
+    expect(h.out()).toContain('Nenhuma fase ativa.')
   })
 })
 

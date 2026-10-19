@@ -13,6 +13,8 @@ export {
 export type { components, paths } from './generated/schema.js'
 export type {
   ApiScope,
+  ConversationWaitingEvent,
+  ConversationWaitingEventData,
   CreateWebhookEndpointRequest,
   CrmLead,
   CrmLeadCreate,
@@ -30,6 +32,7 @@ export type {
   ModuleKind,
   Page,
   SdCatalogItem,
+  SdPhase,
   SdPhaseCategory,
   SdPhaseSummary,
   SdTicket,
@@ -47,12 +50,15 @@ export type {
   WebhookEndpointWithSecret,
   WebhookEvent,
   WebhookEventModule,
+  WebhookEventName,
   WebhookEventType,
   WebhookListenFrame,
   WebhookListenReady,
   WebhookSubscription,
   WebhookTriggerResult,
   WhatsAppBroadcast,
+  WhatsAppConversation,
+  WhatsAppConversationStatus,
   WhatsAppMessage,
   WhatsAppTemplate,
   WhatsAppTemplateSend,
@@ -66,12 +72,14 @@ export {
   type CrmResource,
   collectAll,
   type SdCatalogQuery,
+  type SdPhaseListQuery,
   type SdTicketComment,
   type SdTicketListQuery,
   type SdTicketMove,
   type ServicedeskResource,
   type WhatsAppResource,
   type WhatsAppTemplateListQuery,
+  type WhatsAppWaitingQuery,
 } from './resources.js'
 export {
   errorFromResponse,
@@ -90,6 +98,7 @@ export {
 export { parseSse, type SseMessage } from './sse.js'
 export {
   DEFAULT_LISTEN_IDLE_TIMEOUT_MS,
+  isConversationWaitingEvent,
   type ListDeliveriesQuery,
   type ListenDisconnectReason,
   type ListenMessage,

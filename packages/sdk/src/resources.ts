@@ -8,10 +8,12 @@ import type {
   CrmPipeline,
   Page,
   SdCatalogItem,
+  SdPhase,
   SdTicket,
   SdTicketCreate,
   SdTicketMessage,
   WhatsAppBroadcast,
+  WhatsAppConversation,
   WhatsAppMessage,
   WhatsAppTemplate,
   WhatsAppTemplateSend,
@@ -24,10 +26,12 @@ type Query<Op extends keyof operations> = NonNullable<
 
 export type SdTicketListQuery = Query<'listTickets'>
 export type SdCatalogQuery = Query<'listCatalog'>
+export type SdPhaseListQuery = Query<'listPhases'>
 export type CrmLeadListQuery = Query<'listLeads'>
 export type CrmOpportunityListQuery = Query<'listOpportunities'>
 export type CrmPipelineListQuery = Query<'listPipelines'>
 export type WhatsAppTemplateListQuery = Query<'listTemplates'>
+export type WhatsAppWaitingQuery = Query<'listWaitingConversations'>
 
 export interface SdTicketComment {
   body: string
@@ -81,6 +85,14 @@ export function servicedeskResource(api: Client<paths>) {
     catalog: (query: SdCatalogQuery = {}) =>
       settle<Page<SdCatalogItem>>(
         api.GET('/api/v1/servicedesk/catalog', { params: { query } }),
+      ),
+    /**
+     * Active phases per ticket type, in board order, with `nextPhaseIds`
+     * (where a ticket in that phase may go; `null` = free flow).
+     */
+    phases: (query: SdPhaseListQuery = {}) =>
+      settle<Page<SdPhase>>(
+        api.GET('/api/v1/servicedesk/phases', { params: { query } }),
       ),
   }
 }
@@ -137,6 +149,18 @@ export function whatsappResource(api: Client<paths>) {
       settle<WhatsAppMessage>(
         api.POST('/api/v1/whatsapp/messages/template', { body }),
       ),
+    conversations: {
+      /**
+       * The inbox queue: open conversations with no assignee, oldest first,
+       * within the token owner's team visibility.
+       */
+      waiting: (query: WhatsAppWaitingQuery = {}) =>
+        settle<Page<WhatsAppConversation>>(
+          api.GET('/api/v1/whatsapp/conversations/waiting', {
+            params: { query },
+          }),
+        ),
+    },
     broadcast: (broadcastId: string) =>
       settle<WhatsAppBroadcast>(
         api.GET('/api/v1/whatsapp/broadcasts/{broadcastId}', {
