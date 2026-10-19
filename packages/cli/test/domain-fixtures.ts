@@ -305,3 +305,93 @@ export const page = (items: unknown[], nextCursor: string | null = null) => ({
   items,
   nextCursor,
 })
+
+/** One `GET /servicedesk/phases` item (incident workflow by default). */
+export function sdPhase(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'ph_new',
+    ticketType: 'INCIDENT',
+    name: 'Novo',
+    description: null,
+    color: null,
+    category: 'NEW',
+    completionPercent: 0,
+    position: 0,
+    isInitial: true,
+    pausesSla: false,
+    requiresApproval: false,
+    requiredFields: [],
+    wipLimit: 0,
+    active: true,
+    nextPhaseIds: ['ph_work'],
+    createdAt: STAMP,
+    updatedAt: STAMP,
+    ...overrides,
+  }
+}
+
+/** Incident workflow: Novo → Em atendimento → Aguardando | Resolvido. */
+export const incidentPhases = [
+  sdPhase(),
+  sdPhase({
+    id: 'ph_work',
+    name: 'Em atendimento',
+    category: 'IN_PROGRESS',
+    completionPercent: 50,
+    position: 1,
+    isInitial: false,
+    nextPhaseIds: ['ph_wait', 'ph_done'],
+  }),
+  sdPhase({
+    id: 'ph_wait',
+    name: 'Aguardando cliente',
+    category: 'WAITING',
+    completionPercent: 60,
+    position: 2,
+    isInitial: false,
+    pausesSla: true,
+    nextPhaseIds: null,
+  }),
+  sdPhase({
+    id: 'ph_done',
+    name: 'Resolvido',
+    category: 'RESOLVED',
+    completionPercent: 100,
+    position: 3,
+    isInitial: false,
+    requiresApproval: true,
+    requiredFields: ['solution'],
+    nextPhaseIds: [],
+  }),
+]
+
+/** One waiting conversation (`GET /whatsapp/conversations/waiting`). */
+export function conversation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'cv_1',
+    workspaceId: 'ws_1',
+    connectionId: 'conn_1',
+    contactId: 'ct_1',
+    contactName: 'Dani Lima',
+    contactWaId: '5511999990001',
+    contactAvatarUrl: null,
+    contactSince: '2099-01-01T09:00:00.000Z',
+    status: 'NEW',
+    archived: false,
+    pinned: false,
+    assignedUserId: null,
+    teamId: null,
+    team: null,
+    aiActive: false,
+    aiHandoff: false,
+    avgSentimentScore: null,
+    unreadCount: 2,
+    lastMessageAt: '2099-01-10T09:30:00.000Z',
+    lastMessagePreview: 'Oi, preciso de ajuda com a fatura',
+    closedAt: null,
+    closeReason: null,
+    createdAt: '2099-01-10T09:00:00.000Z',
+    updatedAt: '2099-01-10T09:30:00.000Z',
+    ...overrides,
+  }
+}

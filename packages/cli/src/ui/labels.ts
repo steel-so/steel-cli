@@ -27,6 +27,15 @@ export const PHASE_CATEGORIES = {
   CANCELED: ['cancelado', 'cancelados'],
 } as const satisfies Record<string, string[]>
 
+export const PHASE_CATEGORY_LABELS: Record<string, string> = {
+  NEW: 'Novo',
+  IN_PROGRESS: 'Em andamento',
+  WAITING: 'Aguardando',
+  RESOLVED: 'Resolvido',
+  CLOSED: 'Fechado',
+  CANCELED: 'Cancelado',
+}
+
 export const LEAD_STAGES = {
   RECEIVED: ['recebido'],
   IN_CONTACT: ['em-contato', 'contato'],
@@ -67,6 +76,12 @@ export const QUALITY_LABELS: Record<string, string> = {
   YELLOW: 'Média',
   RED: 'Baixa',
   UNKNOWN: '—',
+}
+
+export const CONVERSATION_STATUS_LABELS: Record<string, string> = {
+  NEW: 'Nova',
+  IN_PROGRESS: 'Em atendimento',
+  CLOSED: 'Encerrada',
 }
 
 export const BROADCAST_STATUS_LABELS: Record<string, string> = {

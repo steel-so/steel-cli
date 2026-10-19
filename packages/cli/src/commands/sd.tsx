@@ -1,20 +1,25 @@
-import type {
-  SdCatalogItem,
-  SdTicket,
-  SdTicketCreate,
-  SdTicketType,
+import {
+  collectAll,
+  type SdCatalogItem,
+  type SdPhase,
+  type SdTicket,
+  type SdTicketCreate,
+  type SdTicketType,
+  type ServicedeskResource,
 } from '@steel-so/sdk'
 import { Box, Text } from 'ink'
-import type { Context } from '../context.js'
-import { usageError } from '../errors.js'
+import type { AuthTarget, Context } from '../context.js'
+import { CliError, fromSteelError, usageError } from '../errors.js'
 import {
   confirmWrite,
   fetchAll,
   fetchPages,
+  MAX_PAGE_SIZE,
   type PageOptions,
   parseEnum,
   readTextArg,
   required,
+  sameText,
   splitList,
   truncate,
   unwrap,
@@ -26,6 +31,7 @@ import {
   formatMinutes,
   label,
   PHASE_CATEGORIES,
+  PHASE_CATEGORY_LABELS,
   SLA_STATE_LABELS,
   TICKET_TYPE_LABELS,
   TICKET_TYPES,
@@ -352,6 +358,123 @@ export async function ticketComment(
 }
 
 /* ------------------------------------------------------------------ */
+/* Phases                                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Where a ticket in `currentId` may go, in board order: the phase's
+ * `nextPhaseIds`, or every other phase of the type when it is `null`
+ * (free flow) or the current phase is not in the list.
+ */
+export function nextPhases(phases: SdPhase[], currentId: string): SdPhase[] {
+  const current = phases.find((phase) => phase.id === currentId)
+  const next = current?.nextPhaseIds
+  if (!next) return phases.filter((phase) => phase.id !== currentId)
+  return phases.filter((phase) => next.includes(phase.id))
+}
+
+/** `--phase` by id, else by name (accents and case ignored). */
+export function resolvePhase(phases: SdPhase[], input: string): SdPhase {
+  const byId = phases.find((phase) => phase.id === input)
+  if (byId) return byId
+  const [match, ...others] = phases.filter((phase) =>
+    sameText(phase.name, input),
+  )
+  if (!match) {
+    throw usageError(
+      `Fase não encontrada: ${input}`,
+      'Veja as fases com `steel sd phases --type <tipo>`.',
+    )
+  }
+  if (others.length > 0) {
+    throw usageError(
+      `Há mais de uma fase “${input}”.`,
+      'Use o id da fase (veja `steel sd phases`).',
+    )
+  }
+  return match
+}
+
+/**
+ * Every active phase of a ticket type. `undefined` when the server predates
+ * `GET /servicedesk/phases` (404): callers then take `--phase` as an id.
+ */
+export async function loadTicketPhases(
+  sd: ServicedeskResource,
+  target: AuthTarget,
+  ticketType: SdTicketType,
+): Promise<SdPhase[] | undefined> {
+  const result = await collectAll<SdPhase>((cursor) =>
+    sd.phases({ ticketType, limit: MAX_PAGE_SIZE, cursor }),
+  )
+  if (result.ok) return result.data.items
+  if (result.error.status === 404) return undefined
+  throw fromSteelError(result.error, target.url)
+}
+
+function phaseChoiceHint(phase: SdPhase): string {
+  return `${label(PHASE_CATEGORY_LABELS, phase.category)} · ${phase.completionPercent}%`
+}
+
+export interface PhasesOptions extends PageOptions {
+  type?: string
+}
+
+export async function phases(ctx: Context, options: PhasesOptions) {
+  const ticketType = parseType(options.type)
+  const target = await ctx.authTarget()
+  const sd = ctx.client(target, target.token).servicedesk
+  const page = await fetchPages(target, options, (query) =>
+    sd.phases({ ...query, ...(ticketType ? { ticketType } : {}) }),
+  )
+  printPage(ctx, page, {
+    command: `steel sd phases${options.type ? ` --type ${options.type}` : ''}`,
+    empty: 'Nenhuma fase ativa.',
+    table: (items) => {
+      const names = new Map(items.map((phase) => [phase.id, phase.name]))
+      const next = (phase: SdPhase) => {
+        if (phase.nextPhaseIds === null) return 'qualquer'
+        if (phase.nextPhaseIds.length === 0) return '—'
+        return truncate(
+          phase.nextPhaseIds.map((id) => names.get(id) ?? id).join(', '),
+          40,
+        )
+      }
+      const flags = (phase: SdPhase) =>
+        [
+          phase.isInitial ? 'inicial' : '',
+          phase.pausesSla ? 'pausa SLA' : '',
+          phase.requiresApproval ? 'aprovação' : '',
+        ]
+          .filter(Boolean)
+          .join(', ')
+      return (
+        <Table
+          columns={[
+            { key: 'type', label: 'Tipo' },
+            { key: 'name', label: 'Fase' },
+            { key: 'category', label: 'Categoria' },
+            { key: 'percent', label: '%' },
+            { key: 'next', label: 'Vai para' },
+            { key: 'flags', label: 'Regras' },
+            { key: 'id', label: 'Id' },
+          ]}
+          rows={items.map((phase) => ({
+            type: label(TICKET_TYPE_LABELS, phase.ticketType),
+            name: truncate(phase.name, 28),
+            category: label(PHASE_CATEGORY_LABELS, phase.category),
+            percent: `${phase.completionPercent}%`,
+            next: next(phase),
+            flags: flags(phase) || '—',
+            id: phase.id,
+          }))}
+        />
+      )
+    },
+  })
+}
+
+/* ------------------------------------------------------------------ */
 
 export interface TicketMoveOptions {
   phase?: string
@@ -360,30 +483,80 @@ export interface TicketMoveOptions {
   yes?: boolean
 }
 
+const MOVE_HINT =
+  'Use --phase <nome ou id> (veja `steel sd phases --type <tipo>`).'
+
 export async function ticketMove(
   ctx: Context,
   ticketId: string,
   options: TicketMoveOptions,
 ) {
+  if (!options.phase && !ctx.interactive) {
+    throw usageError('Falta --phase.', MOVE_HINT)
+  }
   const target = await ctx.authTarget()
-  const phaseId = await required(
+  const sd = ctx.client(target, target.token).servicedesk
+  const ticket = unwrap(await sd.tickets.get(ticketId), target)
+  const all = await loadTicketPhases(sd, target, ticket.type)
+  const allowed = all ? nextPhases(all, ticket.phaseId) : undefined
+  if (!options.phase && allowed?.length === 0) {
+    throw new CliError(
+      `O chamado ${ticket.code} está na fase ${ticket.phase.name}, que não tem saída.`,
+      { hint: 'Veja o fluxo com `steel sd phases`.', code: 'SD_PHASE_NO_EXIT' },
+    )
+  }
+
+  const input = await required(
     ctx,
     options.phase,
     '--phase',
-    () => ctx.prompt.text('Id da fase de destino', { required: true }),
-    'Informe o id da fase com --phase (veja `steel sd ticket view <id> --json`).',
+    () =>
+      allowed
+        ? ctx.prompt.select(
+            `Mover ${ticket.code} (${ticket.phase.name}) para`,
+            allowed.map((phase) => ({
+              value: phase.id,
+              label: phase.name,
+              hint: phaseChoiceHint(phase),
+            })),
+          )
+        : ctx.prompt.text('Id da fase de destino', { required: true }),
+    MOVE_HINT,
   )
-  const solution =
+  const phase = all ? resolvePhase(all, input) : undefined
+  if (phase && allowed && !allowed.some((item) => item.id === phase.id)) {
+    throw usageError(
+      phase.id === ticket.phaseId
+        ? `O chamado ${ticket.code} já está na fase ${phase.name}.`
+        : `O chamado ${ticket.code} não pode ir de ${ticket.phase.name} para ${phase.name}.`,
+      allowed.length > 0
+        ? `Fases permitidas: ${allowed.map((item) => item.name).join(', ')}.`
+        : `A fase ${ticket.phase.name} não tem saída.`,
+    )
+  }
+  const phaseId = phase?.id ?? input
+  const phaseName = phase?.name ?? input
+
+  let solution =
     options.solution === undefined
       ? undefined
       : await readTextArg(ctx, options.solution)
+  if (
+    solution === undefined &&
+    ctx.interactive &&
+    phase?.requiredFields.includes('solution')
+  ) {
+    solution = await ctx.prompt.text(`Solução (a fase ${phase.name} exige)`, {
+      required: true,
+    })
+  }
   await confirmWrite(
     ctx,
     options.yes,
-    `Mover o chamado ${ticketId} para a fase ${phaseId}?`,
+    `Mover o chamado ${ticket.code} para a fase ${phaseName}?`,
   )
-  const ticket = unwrap(
-    await ctx.client(target, target.token).servicedesk.tickets.move(ticketId, {
+  const moved = unwrap(
+    await sd.tickets.move(ticketId, {
       phaseId,
       ...(solution ? { solution } : {}),
       ...(options.comment ? { comment: options.comment } : {}),
@@ -391,13 +564,13 @@ export async function ticketMove(
     target,
   )
   if (ctx.json) {
-    ctx.printJson(ticket)
+    ctx.printJson(moved)
     return
   }
   ctx.render(
     <Success>
-      {ticket.code} agora está em {ticket.phase.name} (
-      {ticket.completionPercent}%).
+      {moved.code} agora está em {moved.phase.name} ({moved.completionPercent}
+      %).
     </Success>,
   )
 }
