@@ -54,6 +54,8 @@ export type SdUserSummary = Schemas['SdUserSummary']
 export type SdTicketCreate = RequestBody<'createTicket'>
 export type SdTicketMessage = Schemas['SdTicketMessage']
 export type SdCatalogItem = PageItem<'listCatalog', 200>
+/** A phase of the ticket workflow (`GET /servicedesk/phases`). */
+export type SdPhase = Schemas['ApiV1SdPhase']
 export type CrmLead = Schemas['CrmLead']
 export type CrmLeadStage = CrmLead['stage']
 export type CrmLeadCreate = RequestBody<'createLead'>
@@ -65,6 +67,8 @@ export type WhatsAppTemplate = Schemas['WhatsAppTemplate']
 export type WhatsAppTemplateSend = RequestBody<'sendTemplate'>
 export type WhatsAppMessage = Schemas['WhatsAppMessage']
 export type WhatsAppBroadcast = Schemas['WhatsAppBroadcastDetail']
+export type WhatsAppConversation = Schemas['WhatsAppConversation']
+export type WhatsAppConversationStatus = WhatsAppConversation['status']
 
 export type WebhookEventType = Schemas['WebhookEventType']
 export type WebhookEventModule = WebhookEventType['module']
@@ -79,6 +83,8 @@ export type UpdateWebhookEndpointRequest =
   RequestBody<'patchWebhooksEndpointsById'>
 /** Event types an endpoint can subscribe to (`*` = all of them). */
 export type WebhookSubscription = CreateWebhookEndpointRequest['events'][number]
+/** Every event type the v1 document knows, `steel.ping` included. */
+export type WebhookEventName = WebhookEventType['type']
 export type WebhookDelivery = Schemas['WebhookDelivery']
 export type WebhookDeliveryStatus = WebhookDelivery['status']
 export type WebhookDeliveryPage = Page<WebhookDelivery>
@@ -98,6 +104,35 @@ export interface WebhookEvent {
   createdAt: string
   workspaceId: string
   data: unknown
+}
+
+/**
+ * `data` of `communication.conversation.waiting`: a Comunicação conversation
+ * just entered the agents' queue (open, not archived, no assignee).
+ */
+export interface ConversationWaitingEventData {
+  conversation: {
+    id: string
+    status: 'NEW' | 'IN_PROGRESS'
+    connectionId: string
+    /** Team queue it waits in; `null` = the general queue. */
+    teamId: string | null
+    /** The AI is answering it meanwhile. */
+    aiActive: boolean
+    unreadCount: number
+    lastMessageAt: string | null
+    createdAt: string
+  }
+  contact: { id: string; waId: string; name: string | null }
+  /** How it got into the queue. */
+  reason: 'new' | 'reopened' | 'returned_to_queue'
+  /** Who did it; `null` = the contact or the system. */
+  actorId: string | null
+}
+
+export type ConversationWaitingEvent = WebhookEvent & {
+  type: 'communication.conversation.waiting'
+  data: ConversationWaitingEventData
 }
 
 /** Data of the first SSE message (`event: ready`) of `listen`. */

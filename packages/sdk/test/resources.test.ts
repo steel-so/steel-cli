@@ -140,6 +140,37 @@ describe('domain resources', () => {
     ])
   })
 
+  it('lists phases and the waiting conversations with their filters', async () => {
+    const phases = {
+      items: [{ id: 'ph_new', nextPhaseIds: null }],
+      nextCursor: null,
+    }
+    const waiting = { items: [{ id: 'cv_1' }], nextCursor: 'c2' }
+    const { steel, calls } = client(ok(phases), ok(waiting))
+
+    const listed = await steel.servicedesk.phases({
+      ticketType: 'CHANGE',
+      limit: 100,
+    })
+    const queue = await steel.whatsapp.conversations.waiting({
+      connectionId: 'conn_1',
+      teamId: 'team_1',
+      cursor: 'c1',
+    })
+
+    expect(listed).toEqual({ ok: true, status: 200, data: phases })
+    expect(queue).toEqual({ ok: true, status: 200, data: waiting })
+    expect(
+      calls.map((call) => {
+        const url = new URL(call.url)
+        return `${call.method} ${url.pathname}${url.search}`
+      }),
+    ).toEqual([
+      'GET /api/v1/servicedesk/phases?ticketType=CHANGE&limit=100',
+      'GET /api/v1/whatsapp/conversations/waiting?connectionId=conn_1&teamId=team_1&cursor=c1',
+    ])
+  })
+
   it('maps HTTP and network failures to results', async () => {
     const { steel } = client(
       errorEnvelope(404, 'SD_TICKET_NOT_FOUND'),

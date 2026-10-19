@@ -1,6 +1,8 @@
 import type { Client } from 'openapi-fetch'
 import type { paths } from './generated/schema.js'
 import type {
+  ConversationWaitingEvent,
+  ConversationWaitingEventData,
   CreateWebhookEndpointRequest,
   TriggerWebhookEventRequest,
   UpdateWebhookEndpointRequest,
@@ -26,6 +28,22 @@ import { parseSse } from './sse.js'
 
 /** No byte (event or `: ping` heartbeat, every 25 s) for this long = dead. */
 export const DEFAULT_LISTEN_IDLE_TIMEOUT_MS = 60_000
+
+/** Narrows a parsed delivery to `communication.conversation.waiting`. */
+export function isConversationWaitingEvent(
+  event: WebhookEvent | null | undefined,
+): event is ConversationWaitingEvent {
+  if (event?.type !== 'communication.conversation.waiting') {
+    return false
+  }
+  const data = event.data as Partial<ConversationWaitingEventData> | null
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    typeof data.conversation?.id === 'string' &&
+    typeof data.contact?.waId === 'string'
+  )
+}
 
 export interface ListDeliveriesQuery {
   endpointId?: string
