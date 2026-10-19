@@ -236,6 +236,10 @@ export function buildProgram(deps: Deps, state: ProgramState): Command {
     )
     .option('--description <texto>', 'descrição do endpoint')
     .option('--inactive', 'cadastra desativado')
+    .addHelpText(
+      'after',
+      '\nExemplos:\n  steel webhooks endpoints create --url https://erp.exemplo.com/steel --events crm.lead.created,crm.deal.won\n  steel webhooks endpoints create --url https://bot.exemplo.com/fila --events communication.conversation.waiting\n',
+    )
     .action(
       run((ctx, _, options) =>
         endpointsCreate(ctx, {
