@@ -9,6 +9,7 @@ import {
 } from '../src/commands/zap.js'
 import {
   broadcast,
+  conversation,
   domainHarness,
   page,
   path,
@@ -86,6 +87,78 @@ describe('template variables', () => {
     expect(() => parseVars(['=x'])).toThrow('Variável inválida')
     expect(normalizePhone('+55 (11) 99999-0000')).toBe('5511999990000')
     expect(() => normalizePhone('abc')).toThrow('Número inválido')
+  })
+})
+
+describe('steel zap waiting', () => {
+  it('prints the JSON page with the filters', async () => {
+    const h = await domainHarness()
+    const body = page([conversation()], 'c2')
+    h.reply(ok(body))
+
+    await h.run(
+      'zap',
+      'waiting',
+      '--connection',
+      'conn_1',
+      '--team',
+      'team_1',
+      '--limit',
+      '5',
+    )
+
+    expect(path(h.requests[0])).toBe(
+      'GET /api/v1/whatsapp/conversations/waiting?limit=5&connectionId=conn_1&teamId=team_1',
+    )
+    expect(h.outJson()).toEqual(body)
+  })
+
+  it('renders the queue on a terminal', async () => {
+    const h = await domainHarness({ tty: true })
+    h.reply(
+      ok(
+        page([
+          conversation(),
+          conversation({
+            id: 'cv_2',
+            contactName: null,
+            contactWaId: '5511988887777',
+            team: { id: 'team_1', name: 'Financeiro' },
+            teamId: 'team_1',
+            status: 'IN_PROGRESS',
+            aiActive: true,
+            unreadCount: 0,
+            lastMessageAt: null,
+            lastMessagePreview: null,
+          }),
+        ]),
+      ),
+    )
+
+    await h.run('zap', 'waiting')
+
+    const out = h.out()
+    const line = (text: string) =>
+      out.split('\n').find((row) => row.includes(text)) ?? ''
+    expect(line('cv_1')).toContain('Dani Lima')
+    expect(line('cv_1')).toContain('Geral')
+    expect(line('cv_1')).toContain('10/01/2099, 09:30')
+    expect(line('cv_1')).not.toContain('sim')
+    expect(line('cv_2')).toContain('+5511988887777')
+    expect(line('cv_2')).toContain('Financeiro')
+    expect(line('cv_2')).toContain('sim')
+    expect(line('cv_2')).toContain('10/01/2099, 09:00')
+    expect(out).toContain('2 itens.')
+  })
+
+  it('shows the empty state', async () => {
+    const h = await domainHarness({ tty: true })
+    h.reply(ok(page([])))
+    await h.run('zap', 'waiting')
+    expect(path(h.requests[0])).toBe(
+      'GET /api/v1/whatsapp/conversations/waiting',
+    )
+    expect(h.out()).toContain('Nenhuma conversa aguardando atendimento.')
   })
 })
 
