@@ -69,6 +69,30 @@ describe('errors', () => {
     expect(mapped.hint).toBeTruthy()
   })
 
+  it('names the missing scope of API_TOKEN_SCOPE_REQUIRED', () => {
+    const mapped = fromSteelError(
+      {
+        status: 403,
+        code: 'API_TOKEN_SCOPE_REQUIRED',
+        details: { requiredScope: 'api:admin' },
+      },
+      url,
+    )
+    expect(mapped.exitCode).toBe(3)
+    expect(mapped.message).toBe('Este token não tem o escopo api:admin.')
+    expect(mapped.hint).toContain('O token não tem o escopo api:admin.')
+    expect(mapped.hint).toContain('steel login')
+    // Older servers send no details: the only write scope is api:write.
+    for (const details of [undefined, null, 'x', { requiredScope: '' }]) {
+      expect(
+        fromSteelError(
+          { status: 403, code: 'API_TOKEN_SCOPE_REQUIRED', details },
+          url,
+        ).hint,
+      ).toContain('escopo api:write')
+    }
+  })
+
   it('uses Retry-After in the rate-limit hint', () => {
     expect(
       fromSteelError(

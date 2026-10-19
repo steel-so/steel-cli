@@ -118,6 +118,27 @@ describe('steel api', () => {
     expect(h.err()).toContain('GET /api/v1/y respondeu 500.')
   })
 
+  it('names the missing scope on API_TOKEN_SCOPE_REQUIRED', async () => {
+    const h = await loggedIn({ tty: true })
+    h.reply(
+      json(403, {
+        success: false,
+        statusCode: 403,
+        message: 'Este token só permite leitura.',
+        error: {
+          code: 'API_TOKEN_SCOPE_REQUIRED',
+          details: { requiredScope: 'api:write' },
+        },
+      }),
+    )
+
+    expect(await h.run('api', 'POST', '/webhooks/endpoints', '-d', '{}')).toBe(
+      3,
+    )
+    expect(h.err()).toContain('respondeu 403 (API_TOKEN_SCOPE_REQUIRED).')
+    expect(h.err()).toContain('O token não tem o escopo api:write.')
+  })
+
   it('keeps stderr clean in JSON mode and passes text bodies through', async () => {
     const h = await loggedIn()
     h.reply(

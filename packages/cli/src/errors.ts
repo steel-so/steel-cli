@@ -46,9 +46,30 @@ export function notLoggedIn(profile: string): CliError {
   })
 }
 
+/** `details.requiredScope` of `API_TOKEN_SCOPE_REQUIRED` (`api:write` if absent). */
+export function requiredScope(details: unknown): string {
+  const scope =
+    typeof details === 'object' && details !== null
+      ? (details as { requiredScope?: unknown }).requiredScope
+      : undefined
+  return typeof scope === 'string' && scope ? scope : 'api:write'
+}
+
+/** What to do when the token lacks a scope; shared with `steel api`. */
+export function scopeHint(scope: string): string {
+  return `O token não tem o escopo ${scope}. Rode \`steel login\` e escolha ${scope} na tela de autorização (ou crie um token com ${scope} em Configurações › Segurança › Tokens de API).`
+}
+
 /** Translates an SDK error into what the user reads. */
 export function fromSteelError(error: SteelError, url: string): CliError {
   const base = { code: error.code, cause: error }
+  if (error.code === 'API_TOKEN_SCOPE_REQUIRED') {
+    const scope = requiredScope(error.details)
+    return new CliError(
+      error.message ?? `Este token não tem o escopo ${scope}.`,
+      { ...base, hint: scopeHint(scope), exitCode: EXIT.AUTH },
+    )
+  }
   // A 401/403 with a specific code (API_TOKEN_SCOPE_REQUIRED, a module
   // that is off…) is still an auth failure: same message family, exit 3.
   const kind =
