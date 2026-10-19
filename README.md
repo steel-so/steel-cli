@@ -18,7 +18,7 @@ brew install steel-so/tap/steel
 ```bash
 curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | sh
 # versão e pasta específicas:
-curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.1.1 STEEL_INSTALL_DIR=/usr/local/bin sh
+curl -fsSL https://raw.githubusercontent.com/steel-so/steel-cli/main/install.sh | STEEL_VERSION=0.1.2 STEEL_INSTALL_DIR=/usr/local/bin sh
 ```
 
 **npm** (Node.js 22.12 ou mais novo):
@@ -49,7 +49,7 @@ conferir numa instalação:
 
 ```bash
 # numa pasta de teste: o npm audit signatures confere as dependências instaladas
-npm install @steel-so/cli@0.1.1 @steel-so/sdk@0.1.1
+npm install @steel-so/cli@0.1.2 @steel-so/sdk@0.1.2
 npm audit signatures    # conta os pacotes com "verified attestations"
 ```
 
@@ -59,7 +59,7 @@ workflow que publicaram a versão).
 ### Versão instalada
 
 ```bash
-steel --version        # steel 0.1.1 (<commit>, <data do build>)
+steel --version        # steel 0.1.2 (<commit>, <data do build>)
 steel version          # versão, commit, data do build, plataforma e instalação
 steel version --json
 ```
